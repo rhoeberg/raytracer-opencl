@@ -1,0 +1,26 @@
+version(1);
+
+project_name = "raytracer-opencl";
+
+patterns = {
+"*.cpp",
+".bat",
+"*.h",
+"*.c"
+};
+
+command_list = {
+	{
+		.name = "build",
+		.out = "*compilation*", .footer_panel = true, .save_dirty_files = true, .cursor_at_end = true,
+		.cmd = { {"build.bat", .os = "win" }, },
+	},
+	{
+		.name = "run",
+		.out = "*run*",.footer_panel = false,.save_dirty_files = false, .cursor_at_end = true,
+		.cmd = { {"e:\repos\raytracer-opencl\build\main.exe", .os = "win" }, },
+	},
+};
+
+fkey_command[1] = "build";
+fkey_command[2] = "run";

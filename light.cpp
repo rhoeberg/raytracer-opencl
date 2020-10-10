@@ -20,7 +20,7 @@ inline PointLight POINTLIGHT(Vec3 pos, Vec3 color)
 Vec3 LightGetColor(Vec3 l, Vec3 lightColor, Hit hit)
 {
     Vec3 p = hit.ray.o + (hit.ray.d * hit.t);
-
+    
     Vec3 col = hit.mat.diffuse * lightColor;
     float nl = Dot(hit.normal, l);
     col = col * MAX(0.0f, nl);
@@ -30,23 +30,23 @@ Vec3 LightGetColor(Vec3 l, Vec3 lightColor, Hit hit)
     Vec3 rl = Reflect(l, hit.normal);
     float rle = Dot(e, rl);
     col2 *= pow(MAX(0.0f, rle), hit.mat.shine);
-
+    
     Vec3 result = col + col2;
-
+    
     return result;
 }
 
-bool PointLightIlluminates(PointLight light, Vec3 point)
+bool PointLightIlluminates(World *world, PointLight light, Vec3 point)
 {
     Vec3 pointFrom = light.pos - point;
     Vec3 adjustedPoint = point + (pointFrom * EPSILON);
     float tl = Length(light.pos - point) / Length(pointFrom);
     Ray ray = RAY(adjustedPoint, pointFrom);
     Hit hit;
-    if(WorldHitGeometry(ray, &hit)) {
-	if(hit.t < tl) {
-	    return false;
-	}
+    if(WorldHitGeometry(world, ray, &hit)) {
+        if(hit.t < tl) {
+            return false;
+        }
     }
     return true;
 }

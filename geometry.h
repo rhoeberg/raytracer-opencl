@@ -15,3 +15,14 @@ struct Sphere
     float r;
     Material mat;
 };
+
+enum GeometryType{
+    Geo_Sphere,
+    Geo_Plane
+};
+
+struct Geometry
+{
+    int id;
+    GeometryType type;
+};
