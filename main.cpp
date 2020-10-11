@@ -20,6 +20,7 @@
 #define EPSILON 0.0001
 
 #include <iostream>
+#include <CL/cl.h>
 
 #include "math.h"
 #include "camera.h"
@@ -45,11 +46,10 @@
 #endif
 
 
-#include <CL/cl.h>
 
 
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
 #define TOTAL_PIXELS (SCREEN_WIDTH * SCREEN_HEIGHT)
 
 bool keys[1024];
@@ -273,6 +273,7 @@ struct OpenCLData
     //cl_mem inputRayD;
     //cl_mem inputRayO;
     cl_mem outputPixels;
+    cl_mem outputDebug;
     
     size_t local;
 };
@@ -361,10 +362,11 @@ OpenCLData init_cl(World *world)
     
     // TODO(NAME): create memory buffers here
     cl.inputWorld = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(World), NULL, NULL);
-    cl.inputRays = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
+    //cl.inputRays = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
     cl.outputPixels = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
+    cl.outputDebug = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, NULL);
     
-    if(!cl.inputWorld || !cl.outputPixels || !cl.inputRays) {
+    if(!cl.inputWorld || !cl.outputPixels) {
         printf("Error: Failed to create memory buffers\n");
         exit(1);
     }
@@ -375,8 +377,12 @@ OpenCLData init_cl(World *world)
     // TODO(NAME): set kernel arguments
     err = 0;
     err = clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld);
-    err |= clSetKernelArg(cl.kernel, 1, sizeof(cl_mem), (void*)&cl.inputRays);
-    err |= clSetKernelArg(cl.kernel, 2, sizeof(cl_mem), (void*)&cl.outputPixels);
+    int width = SCREEN_WIDTH;
+    int height = SCREEN_HEIGHT;
+    err |= clSetKernelArg(cl.kernel, 1, sizeof(int), &width);
+    err |= clSetKernelArg(cl.kernel, 2, sizeof(int), &height);
+    err |= clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), (void*)&cl.outputPixels);
+    err |= clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to set kernel arguments! %d\n", err);
         exit(1);
@@ -434,6 +440,8 @@ int main(int argc, char *argv[])
     glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE0);
     
+    
+    
     cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
     camPitch = asin(cam.g.y);
     camYaw = atan2(cam.g.x, cam.g.z);
@@ -464,6 +472,10 @@ int main(int argc, char *argv[])
     cl_event evKernel, evReadBuf, evWriteBuf;
     int err = 0;
     
+    
+    
+    
+    
     bool renderOnce = false;
     while (!glfwWindowShouldClose(win))
     {
@@ -485,33 +497,22 @@ int main(int argc, char *argv[])
         ImGui::Text("this is a test window");
         ImGui::End();
         
-        int i = 0;
-        for(int y = 0; y < SCREEN_HEIGHT; y++) {
-            for(int x = 0; x < SCREEN_WIDTH; x++) {
-                int yFlipped = SCREEN_HEIGHT - 1 - y;
-                rays[i] = RayFor(cam, SCREEN_WIDTH, SCREEN_HEIGHT, x, yFlipped);
-                //rays[i] = RAY(VEC3(0,0,0), VEC3(0,0,-1));
-                i++;
-            }
-        }
+        float t = glfwGetTime();
+        clSetKernelArg(cl.kernel, 5, sizeof(float), &t);
         
-        err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
-        if(err != CL_SUCCESS) {
-            printf("Error: Failed to write to inputWorld %d\n", err);
-            exit(1);
-        }
         // Execute the kernel over the entire range of our 1d input data set
         // using the maximum number of work group items for this device
         //
-        size_t global = SCREEN_HEIGHT * SCREEN_WIDTH;
+        size_t global[] = { SCREEN_WIDTH, SCREEN_HEIGHT};
         //size_t global = 240000;
-        err = clEnqueueNDRangeKernel(cl.commands, cl.kernel, 1, NULL, &global, &cl.local, 0, NULL, &evKernel);
+        err = clEnqueueNDRangeKernel(cl.commands, cl.kernel, 2, NULL, global, NULL, 0, 0, 0);
         if (err)
         {
             printf("Error: Failed to execute kernel!\n");
             return EXIT_FAILURE;
         }
         //clWaitForEvents(1, &evKernel);
+        
         // Wait for the command commands to get serviced before reading back results
         clFinish(cl.commands);
         // Read back the results from the device to verify the output
@@ -523,13 +524,46 @@ int main(int argc, char *argv[])
         }
         
         
-#if 0        
+        
+#if 0   
+        // CPU RENDER     
         if(!renderOnce) {
-            for(int i = 0; i < SCREEN_WIDTH *  SCREEN_HEIGHT; i++) {
-                pixelData[i] = WorldHit(&world, rays[i]);
+            int i = 0;
+            for(int y = 0; y < SCREEN_HEIGHT; y++) {
+                for(int x = 0; x < SCREEN_WIDTH; x++) {
+                    int yFlipped = SCREEN_HEIGHT - 1 - y;
+                    Ray ray = RayFor(cam, SCREEN_WIDTH, SCREEN_HEIGHT, x, yFlipped);
+                    pixelData[i] = WorldHit(&world, ray);
+                    i++;
+                }
             }
             renderOnce = true;
         }
+#endif
+        
+        
+        
+#if 0     
+        // DEBUG STUFF   
+        Ray cpuRay = RayFor(cam, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0);
+        Ray gpuRay;
+        clEnqueueReadBuffer(cl.commands, cl.outputDebug, CL_TRUE, 0, sizeof(Ray), &gpuRay, 0, NULL, NULL);
+        
+        int x = 398;
+        int y = 400;
+        Vec3 o = VEC3( 0, 0, 0);
+        Vec3 g = VEC3( 0, 0, -1);
+        Vec3 w = Norm(g * -1);
+        Vec3 t = { 0, 1, 0 };
+        Vec3 u = Cross(t, w);
+        Vec3 v = Cross(w, u);
+        float angle = 0.785;
+        Vec3 rw = (w * -1) * (SCREEN_HEIGHT / 2) / tan(angle / 2);
+        Vec3 ru = u * (x - (SCREEN_WIDTH - 1) / 2);
+        Vec3 rv = v * (y - (SCREEN_HEIGHT - 1) / 2);
+        Vec3 r = rw + ru + rv;
+        Vec3 d = Norm(r);
+        printf("debug d: %f %f %f\n", d.x, d.y, d.z);
 #endif
         
         

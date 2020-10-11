@@ -11,13 +11,13 @@
 #define MAX_GEOMETRIES (MAX_PLANES * MAX_SPHERES)
 #define MAX_POINTLIGHTS 16
 
-struct World
+struct [[packed]] World
 {
     Vec3 bgCol;
     Vec3 ambient;
     
-    Plane planes[MAX_PLANES];
-    Sphere spheres[MAX_SPHERES];
+    [[packed]] Plane planes[MAX_PLANES];
+    [[packed]] Sphere spheres[MAX_SPHERES];
     
     int maxPlanes;
     int maxSpheres;
@@ -26,12 +26,12 @@ struct World
     int planeCount;
     int sphereCount;
     
-    Geometry geometries[MAX_GEOMETRIES];
+    [[packed]] Geometry geometries[MAX_GEOMETRIES];
     int geometryCount;
     
-    DirLight dirLight;
+    [[packed]] DirLight dirLight;
     
-    PointLight pointLights[MAX_POINTLIGHTS];
+    [[packed]] PointLight pointLights[MAX_POINTLIGHTS];
     int pointLightCount;
 };
 
