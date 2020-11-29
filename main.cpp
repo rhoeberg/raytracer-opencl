@@ -1,6 +1,17 @@
 #include "GL/glew.h"
+
 #define GLFW_DLL
+#define GLFW_EXPOSE_NATIVE_WGL
+#define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
+
+#if defined (__APPLE__) || defined(MACOSX)
+#define GL_SHARING_EXTENSION "cl_APPLE_gl_sharing"
+#else
+#define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
+#endif
 
 
 #include "imgui/imgui.cpp"
@@ -21,6 +32,8 @@
 
 #include <iostream>
 #include <CL/cl.h>
+#include <CL/cl_gl.h>
+
 
 #include "math.h"
 #include "camera.h"
@@ -46,7 +59,8 @@
 #endif
 
 
-
+#define CHECK_ERR(E) if(E != CL_SUCCESS) fprintf (stderr, "CL ERROR (%d) in %s:%d\n", E,__FILE__, __LINE__);
+#define CHECK_GL(C) C; do {GLenum glerr = glGetError(); if(glerr != GL_NO_ERROR) printf("GL ERROR (%d) in %s:%d\n", glerr, __FILE__, __LINE__);} while(0)
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
@@ -273,12 +287,199 @@ struct OpenCLData
     //cl_mem inputRayD;
     //cl_mem inputRayO;
     cl_mem outputPixels;
+    cl_mem outputTexture;
     cl_mem outputDebug;
     
     size_t local;
 };
 
-OpenCLData init_cl(World *world)
+
+/**
+* Selects CL platform/device capable of CL/GL interop.
+*/
+void cl_select(cl_platform_id* platform_id, cl_device_id* device_id) {
+    cl_int err;
+    int i;
+    char* info;
+    size_t infoSize;
+    cl_uint platformCount;
+    cl_platform_id *platforms;
+    
+    // get platform count
+    err = clGetPlatformIDs(5, NULL, &platformCount);
+    CHECK_ERR(err);
+    
+    // get all platforms
+    platforms = (cl_platform_id*) malloc(sizeof(cl_platform_id) * platformCount);
+    err = clGetPlatformIDs(platformCount, platforms, NULL);
+    CHECK_ERR(err);
+    
+    // for each platform print all attributes
+    for (i = 0; i < platformCount; i++) {
+        
+        printf("%d. Checking Platform \n", i+1);
+        
+        // get platform attribute value size
+        err = clGetPlatformInfo(platforms[i], CL_PLATFORM_EXTENSIONS, 0, NULL, &infoSize);
+        CHECK_ERR(err);
+        info = (char*) malloc(infoSize);
+        
+        // get platform attribute value
+        err = clGetPlatformInfo(platforms[i], CL_PLATFORM_EXTENSIONS, infoSize, info, NULL);
+        CHECK_ERR(err);
+        
+        if(strstr(info, GL_SHARING_EXTENSION) != NULL) {
+            cl_uint num_devices;
+            cl_device_id* devices;
+            
+            // Get the number of GPU devices available to the platform
+            err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, 0, NULL, &num_devices);
+            CHECK_ERR(err);
+            
+            // Create the device list
+            devices = new cl_device_id [num_devices];
+            err  = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, num_devices, devices, NULL);
+            CHECK_ERR(err);
+            
+            int d;
+            for(d = 0; d < num_devices; d++) {
+                
+                // get device attribute value size
+                size_t extensionSize;
+                err = clGetDeviceInfo(devices[d], CL_DEVICE_EXTENSIONS, 0, NULL, &extensionSize );
+                CHECK_ERR(err);
+                
+                if(extensionSize > 0) {
+                    char* extensions = (char*)malloc(extensionSize);
+                    err = clGetDeviceInfo(devices[d], CL_DEVICE_EXTENSIONS, extensionSize, extensions, &extensionSize);
+                    CHECK_ERR(err);
+                    
+                    if(strstr(info, GL_SHARING_EXTENSION) != NULL) {
+                        printf("Found Compatible platform %d and device %d out of %d .\n", i, d, num_devices);
+                        *platform_id = platforms[i];
+                        *device_id = devices[d];
+                        
+                        // TODO remove. currently a toggle for intel/nvidia platform
+                        // break;
+                    }
+                    
+                    free(extensions);
+                }
+                
+            }
+        }
+        
+        free(info);
+        printf("\n");
+        
+    }
+    
+    free(platforms);
+}
+
+
+void cl_select_context(cl_platform_id* platform, cl_device_id* device, cl_context* context) {
+    cl_int err;
+#if defined (__APPLE__)
+    CGLContextObj kCGLContext = CGLGetCurrentContext();
+    CGLShareGroupObj kCGLShareGroup = CGLGetShareGroup(kCGLContext);
+    cl_context_properties props[] =
+    {
+        CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, (cl_context_properties)kCGLShareGroup,
+        0
+    };
+    *context = clCreateContext(props, 0,0, NULL, NULL, &err);
+#else
+#ifdef UNIX
+    cl_context_properties props[] =
+    {
+        CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
+        CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
+        0
+    };
+    *context = clCreateContext(props, 1, &cdDevices[uiDeviceUsed], NULL, NULL, &err);
+#else // Win32
+    cl_context_properties props[] =
+    {
+        CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
+        CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties)*platform,
+        0
+    };
+    *context = clCreateContext(props, 1, device, NULL, NULL, &err);
+    CHECK_ERR(err);
+#endif
+#endif
+}
+
+
+void cl_load_kernel(cl_context* context, cl_device_id* device, const char* source, cl_command_queue* command_queue, cl_kernel* kernel, World *world, cl_mem *inputWorld, cl_mem *outputDebug) {
+    
+    cl_int err;
+    cl_program program;
+    char *source_str = readFile(source);;
+    
+#if 0
+    cl_mem memobj;
+    char string[MEM_SIZE];
+    
+    FILE *fp;
+    size_t source_size;
+    
+    /* Load the source code containing the kernel*/
+    fp = fopen(source, "r");
+    if (!fp) {
+        fprintf(stderr, "Failed to load kernel.\n");
+        exit(1);
+    }
+    source_str = (char *) malloc(MAX_SOURCE_SIZE);
+    source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
+    fclose(fp);
+#endif
+    
+    
+    // create a command queue
+    *command_queue = clCreateCommandQueue(*context, *device, 0, &err);
+    CHECK_ERR(err);
+    
+    
+    //memobj = clCreateBuffer(*context, CL_MEM_READ_WRITE, MEM_SIZE * sizeof(char), NULL, &err);
+    //CHECK_ERR(err);
+    
+    *inputWorld = clCreateBuffer(*context, CL_MEM_READ_ONLY, sizeof(World), NULL, &err);
+    CHECK_ERR(err);
+    *outputDebug = clCreateBuffer(*context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, &err);
+    CHECK_ERR(err);
+    CHECK_ERR(clEnqueueWriteBuffer(*command_queue, *inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL));
+    
+    /* Create Kernel Program from the sour
+    ce */
+    program = clCreateProgramWithSource(*context, 1, (const char **) &source_str,
+                                        (const size_t *) NULL, &err);
+    CHECK_ERR(err);
+    
+    
+    /* Build Kernel Program */
+    err = clBuildProgram(program, 1, device, NULL, NULL, NULL);
+    if(err != CL_SUCCESS) {
+        size_t len;
+        cl_build_status build_status;
+        char buffer[204800];
+        err = clGetProgramBuildInfo(program, *device, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), (void *)&build_status, &len);
+        CHECK_ERR(err);
+        err = clGetProgramBuildInfo(program, *device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        CHECK_ERR(err);
+        printf("Build Log:\n%s\n", buffer);
+        exit(1);
+    }
+    
+    /* Create OpenCL Kernel */
+    *kernel = clCreateKernel(program, "WorldHitKernel", &err);
+    CHECK_ERR(err);
+}
+
+OpenCLData init_cl(World *world, GLFWwindow *win)
 {
     int err;
     
@@ -291,6 +492,7 @@ OpenCLData init_cl(World *world)
     char *kernelSource = readFile(kernelFile);
     
     
+#if 0    
 	/*Step1: Getting platforms and choose an available one.*/
 	cl_uint numPlatforms; //the NO. of platforms
 	cl_platform_id platform = NULL; //the chosen platform
@@ -302,10 +504,9 @@ OpenCLData init_cl(World *world)
 	}
     
 	/*For clarity, choose the first available platform. */
-	if (numPlatforms > 0)
+    if (numPlatforms > 0)
 	{
-		cl_platform_id* platforms = 
-            (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));
+        cl_platform_id *platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));
 		status = clGetPlatformIDs(numPlatforms, platforms, NULL);
 		platform = platforms[0];
 		free(platforms);
@@ -319,8 +520,17 @@ OpenCLData init_cl(World *world)
         exit(1);
     }
     
+    // set CL/GL context
+    cl_context_properties props[] =
+    {
+        CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
+        CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
+        0
+    };
+    
     // create compute context
-    cl.context = clCreateContext(NULL, 1, &cl.device_id, NULL, NULL, &err);
+    cl.context = clCreateContext(props, 1, &cl.device_id, NULL, NULL, &err);
     if(!cl.context) {
         printf("Error: failed to create a compute context!\n");
         exit(1);
@@ -359,17 +569,23 @@ OpenCLData init_cl(World *world)
         exit(1);
     }
     
-    
     // TODO(NAME): create memory buffers here
     cl.inputWorld = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(World), NULL, NULL);
     //cl.inputRays = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
-    cl.outputPixels = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
+    //cl.outputPixels = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
     cl.outputDebug = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, NULL);
     
-    if(!cl.inputWorld || !cl.outputPixels) {
+    if(!cl.inputWorld) {
         printf("Error: Failed to create memory buffers\n");
         exit(1);
     }
+    
+#endif
+    
+    cl_platform_id platform = NULL;
+    cl_select(&platform, &cl.device_id);
+    cl_select_context(&platform, &cl.device_id, &cl.context);
+    cl_load_kernel(&cl.context, &cl.device_id, kernelFile, &cl.commands, &cl.kernel, world, &cl.inputWorld, &cl.outputDebug);
     
     err = clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL);
     //err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
@@ -381,7 +597,7 @@ OpenCLData init_cl(World *world)
     int height = SCREEN_HEIGHT;
     err |= clSetKernelArg(cl.kernel, 1, sizeof(int), &width);
     err |= clSetKernelArg(cl.kernel, 2, sizeof(int), &height);
-    err |= clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), (void*)&cl.outputPixels);
+    //err |= clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), (void*)&cl.outputPixels);
     err |= clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to set kernel arguments! %d\n", err);
@@ -415,6 +631,8 @@ void cleanup_cl(OpenCLData *cl)
 
 int main(int argc, char *argv[])
 {
+    
+    
     GLFWwindow *win;
     init_glfw(&win);
     
@@ -427,26 +645,20 @@ int main(int argc, char *argv[])
         pixelData[i] = VEC3(0, 0, 0);
     }
     
+    
     GLuint texture;
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_FLOAT, pixelData);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE0);
-    
-    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
     
     cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
     camPitch = asin(cam.g.y);
     camYaw = atan2(cam.g.x, cam.g.z);
-    
-    //glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     
     const char* glsl_version = "#version 150";
     IMGUI_CHECKVERSION();
@@ -463,16 +675,37 @@ int main(int argc, char *argv[])
     float moveDuration = 0.5f;
     float moveStartTime = 0.0f;
     
-    Ray *rays = (Ray*)malloc(sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    //Vec3 *rayD = (Vec3*)malloc(sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    //Vec3 *rayO = (Vec3*)malloc(sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    //Ray rays[480000];
-    OpenCLData cl = init_cl(&world);
+    //OpenCLData cl = init_cl(&world, win);
+    printf("here first\n");
+    char *kernelFile = "raytracer-kernel.c";
+    OpenCLData cl;
+    cl_platform_id platform = NULL;
+    cl_select(&platform, &cl.device_id);
+    cl_select_context(&platform, &cl.device_id, &cl.context);
+    cl_load_kernel(&cl.context, &cl.device_id, kernelFile, &cl.commands, &cl.kernel, &world, &cl.inputWorld, &cl.outputDebug);
     
-    cl_event evKernel, evReadBuf, evWriteBuf;
+    //clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), (void*)(&world), 0, NULL, NULL);
+    //err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
+    
+    cl.outputTexture = clCreateFromGLTexture(cl.context, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, texture, NULL);
+    if(!cl.outputTexture) {
+        printf("Error: failed to create texture buffer\n");
+        exit(1);
+    }
+    
+    //glFinish();
+    //clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
+    CHECK_ERR(clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld));
+    int width = SCREEN_WIDTH;
+    int height = SCREEN_HEIGHT;
+    CHECK_ERR(clSetKernelArg(cl.kernel, 1, sizeof(int), &width));
+    CHECK_ERR(clSetKernelArg(cl.kernel, 2, sizeof(int), &height));
+    CHECK_ERR(clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), &cl.outputTexture));
+    CHECK_ERR(clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug));
+    
+    
     int err = 0;
-    
-    
+    cl_event evKernel, evReadBuf, evWriteBuf;
     
     
     
@@ -480,18 +713,13 @@ int main(int argc, char *argv[])
     while (!glfwWindowShouldClose(win))
     {
         
-        //if(glfwGetTime() > moveStartTimer + moveDuration) {
-        //moving = false;
-        //}
+        
         
         glfwPollEvents();
         
-        //ImGui_ImplOpenGL3_Init(glsl_version);
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        
-        // add imgui code here
         bool show = true;
         ImGui::Begin("test", &show);
         ImGui::Text("this is a test window");
@@ -500,30 +728,24 @@ int main(int argc, char *argv[])
         float t = glfwGetTime();
         clSetKernelArg(cl.kernel, 5, sizeof(float), &t);
         
+        
+        glFinish();
+        clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
+        
         // Execute the kernel over the entire range of our 1d input data set
         // using the maximum number of work group items for this device
         //
-        size_t global[] = { SCREEN_WIDTH, SCREEN_HEIGHT};
-        //size_t global = 240000;
+        size_t global[] = {SCREEN_WIDTH, SCREEN_HEIGHT};
         err = clEnqueueNDRangeKernel(cl.commands, cl.kernel, 2, NULL, global, NULL, 0, 0, 0);
         if (err)
         {
             printf("Error: Failed to execute kernel!\n");
             return EXIT_FAILURE;
         }
-        //clWaitForEvents(1, &evKernel);
         
         // Wait for the command commands to get serviced before reading back results
+        clEnqueueReleaseGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
         clFinish(cl.commands);
-        // Read back the results from the device to verify the output
-        err = clEnqueueReadBuffer( cl.commands, cl.outputPixels, CL_TRUE, 0, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, &(pixelData[0]), 0, NULL, NULL );  
-        if (err != CL_SUCCESS)
-        {
-            printf("Error: Failed to read output array! %d\n", err);
-            exit(1);
-        }
-        
-        
         
 #if 0   
         // CPU RENDER     
@@ -541,35 +763,9 @@ int main(int argc, char *argv[])
         }
 #endif
         
-        
-        
-#if 0     
-        // DEBUG STUFF   
-        Ray cpuRay = RayFor(cam, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0);
-        Ray gpuRay;
-        clEnqueueReadBuffer(cl.commands, cl.outputDebug, CL_TRUE, 0, sizeof(Ray), &gpuRay, 0, NULL, NULL);
-        
-        int x = 398;
-        int y = 400;
-        Vec3 o = VEC3( 0, 0, 0);
-        Vec3 g = VEC3( 0, 0, -1);
-        Vec3 w = Norm(g * -1);
-        Vec3 t = { 0, 1, 0 };
-        Vec3 u = Cross(t, w);
-        Vec3 v = Cross(w, u);
-        float angle = 0.785;
-        Vec3 rw = (w * -1) * (SCREEN_HEIGHT / 2) / tan(angle / 2);
-        Vec3 ru = u * (x - (SCREEN_WIDTH - 1) / 2);
-        Vec3 rv = v * (y - (SCREEN_HEIGHT - 1) / 2);
-        Vec3 r = rw + ru + rv;
-        Vec3 d = Norm(r);
-        printf("debug d: %f %f %f\n", d.x, d.y, d.z);
-#endif
-        
-        
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_RGB, GL_FLOAT, &pixelData[0]);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        //glBindTexture(GL_TEXTURE_2D, texture);
+        //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_RGB, GL_FLOAT, &pixelData[0]);
+        //glBindTexture(GL_TEXTURE_2D, 0);
         
         glClearColor(1.0f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -582,14 +778,12 @@ int main(int argc, char *argv[])
         glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
         
-        
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(win);
     }
     
     
-    free(rays);
     cleanup_cl(&cl);
     free(world.planes);
     free(world.spheres);

@@ -210,6 +210,7 @@ bool WorldHitGeometry( const struct World *world, struct Ray ray, struct Hit *hi
         if (world->geometries[i].type == Geo_Sphere)
         {
             hitSuccess = SphereHit(world->spheres[world->geometries[i].id], ray, &nextHit);
+            
         }
         else if (world->geometries[i].type == Geo_Plane)
         {
@@ -264,6 +265,7 @@ float3 WorldHit( const struct World *world, struct Ray ray, int n)
         
         result += LightGetColor(normalize(world->dirLight.dir * -1), world->dirLight.color, hit);
         
+        
         int i;
         for(i = 0; i < world->pointLightCount; i++)
         {
@@ -287,6 +289,14 @@ float3 WorldHit( const struct World *world, struct Ray ray, int n)
                 result += hit.mat.reflection * WorldHit(world, reflectionRay, n);
             }
         }
+        
+        
+        //const unsigned int x = get_global_id(0);
+        //const unsigned int y = get_global_id(1);
+        //if(x == 200 && y == 200) {
+        //printf("yes we hit\n");
+        //}
+        
         return result;
     }
     
@@ -295,9 +305,10 @@ float3 WorldHit( const struct World *world, struct Ray ray, int n)
 
 
 // OpenCL Kernel Function for element by element
-__kernel void WorldHitKernel(__global const struct World *world2, int width, int height,  __global struct Vec3 *pixelData, __global struct Ray *outputDebug,
+__kernel void WorldHitKernel(__global const struct World *world2, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
                              float time)
 {
+    
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
     
@@ -320,10 +331,12 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
     ray.d = d;
     
     struct World world;
-    world.bgCol = (float3)(0.0f, 0.0f, 0.0f);
+    world.bgCol = (float3)(0.0f, 1.0f, 0.0f);
     world.ambient = (float3)(0.1f, 0.1f, 0.1f);
-    world.sphereCount = 2;
-    
+    //world.sphereCount = 2;
+    world.geometryCount = 0;
+    world.sphereCount = 0;
+    world.planeCount = 0;
     {
         world.spheres[0].mat.diffuse = (float3)(0.8f,0.8f,0.0f);
         world.spheres[0].mat.specular = (float3)(0.5f, 0.5f, 0.5f);
@@ -332,9 +345,10 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
         world.spheres[0].r = 0.5f;
         world.spheres[0].mat.mirror = true;
         world.spheres[0].mat.reflection = (float3)(0.5f, 0.5f, 0.5f);
-        world.geometries[world.geometryCount].id = 0;
+        world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
         world.geometryCount += 1;
+        world.sphereCount += 1;
     }
     
     {
@@ -346,9 +360,10 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
         world.spheres[1].r = 0.5f;
         world.spheres[1].mat.mirror = true;
         world.spheres[1].mat.reflection = (float3)(0.5f, 0.5f, 0.5f);
-        world.geometries[world.geometryCount].id = 1;
+        world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
         world.geometryCount += 1;
+        world.sphereCount += 1;
     }
     
     {
@@ -356,9 +371,10 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
         world.planes[0].n = (float3)(0, -1, 0);
         world.planes[0].mat.diffuse = (float3)(0, 1, 0);
         world.planes[0].mat.specular = (float3)(0.2f, 0.2f, 0.2f);
-        world.geometries[world.geometryCount].id = 0;
+        world.geometries[world.geometryCount].id = world.planeCount;
         world.geometries[world.geometryCount].type = Geo_Plane;
         world.geometryCount += 1;
+        world.planeCount += 1;
     }
     
     world.dirLight.dir = (float3)(-0.5f, sin(time * 0.5f), -0.5f);
@@ -371,13 +387,25 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
     
     float3 col = WorldHit(&world, ray, 0);
     
+    if(x > 700) {
+        //printf("y: %d\n", y);
+        //printf("col: %f %f %f \n", col.x, col.y, col.z);
+        //write_imagef(texture, (int2)(x, y), (float4)(col, 1.0f));
+    }
+    
+    int2 coord = (int2)(x, y);
+    write_imagef(texture, coord, (float4)(col, 1.0f));
+    
+    
     //float3 col = WorldHit(&world, rays[i], 0);
     //pixelData[i].x = sin((float)i / 10000.0f);
-    int i = width * y + x;
-    pixelData[i].x = col.x;
-    pixelData[i].y = col.y;
-    pixelData[i].z = col.z;
+    //int i = width * y + x;
+    //pixelData[i].x = col.x;
+    //pixelData[i].y = col.y;
+    //pixelData[i].z = col.z;
     
+    //float3 col2 = (float3)(0,0,0);
+    //write_imagef(texture, (int2)(x, y), (float4)(1.0f, 0.0f, 0.0f, 1.0f));
     
 #if 0    
     if(x == 400 && y == 400) {
