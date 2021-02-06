@@ -1,43 +1,4 @@
-#include "GL/glew.h"
-
-#define GLFW_DLL
-#define GLFW_EXPOSE_NATIVE_WGL
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
-
-#if defined (__APPLE__) || defined(MACOSX)
-#define GL_SHARING_EXTENSION "cl_APPLE_gl_sharing"
-#else
-#define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
-#endif
-
-
-#include "imgui/imgui.cpp"
-#include "imgui/imgui_widgets.cpp"
-#include "imgui/imgui_draw.cpp"
-#include "imgui/imgui_demo.cpp"
-#include "imgui/imgui_impl_opengl3.cpp"
-#include "imgui/imgui_impl_glfw.cpp"
-
-
-#define ARRAY_SIZE(a) sizeof(a) / sizeof(a[0])
-#define KILOBYTES(value) ((value)*1024)
-#define MEGABYTES(value) (KILOBYTES(value) * 1024)
-#define GIGABYTES(value) (GIGABYTES(value) * 1024)
-
-#define MOUSE_SENSITIVITY 0.1
-#define EPSILON 0.0001
-
-#include <iostream>
-#include <CL/cl.h>
-#include <CL/cl_gl.h>
-
-
-#include "math.h"
-#include "camera.h"
-#include "world.h"
+#include "main.h"
 
 #include "light.cpp"
 #include "camera.cpp"
@@ -45,26 +6,6 @@
 #include "geometry.cpp"
 #include "raytracer.cpp"
 #include "world.cpp"
-
-
-#if 0
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#endif
-
-
-#define CHECK_ERR(E) if(E != CL_SUCCESS) fprintf (stderr, "CL ERROR (%d) in %s:%d\n", E,__FILE__, __LINE__);
-#define CHECK_GL(C) C; do {GLenum glerr = glGetError(); if(glerr != GL_NO_ERROR) printf("GL ERROR (%d) in %s:%d\n", glerr, __FILE__, __LINE__);} while(0)
-
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
-#define TOTAL_PIXELS (SCREEN_WIDTH * SCREEN_HEIGHT)
 
 bool keys[1024];
 bool registeredKeys[1024];
@@ -85,6 +26,7 @@ float moveStartTimer = 0.0f;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode)
 {
+	// TODO (rhoe) user glfwUserPointer to avoid global input variables
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
     
@@ -273,26 +215,6 @@ void create_quad(GLuint *VAO)
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
-
-struct OpenCLData
-{
-    cl_device_id device_id;
-    cl_context context;
-    cl_command_queue commands;
-    cl_program program;
-    cl_kernel kernel;
-    
-    cl_mem inputWorld;
-    cl_mem inputRays;
-    //cl_mem inputRayD;
-    //cl_mem inputRayO;
-    cl_mem outputPixels;
-    cl_mem outputTexture;
-    cl_mem outputDebug;
-    
-    size_t local;
-};
-
 
 /**
 * Selects CL platform/device capable of CL/GL interop.
@@ -569,7 +491,7 @@ OpenCLData init_cl(World *world, GLFWwindow *win)
         exit(1);
     }
     
-    // TODO(NAME): create memory buffers here
+    // TODO(rhoeberg): create memory buffers here
     cl.inputWorld = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(World), NULL, NULL);
     //cl.inputRays = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
     //cl.outputPixels = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
@@ -590,7 +512,7 @@ OpenCLData init_cl(World *world, GLFWwindow *win)
     err = clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL);
     //err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
     
-    // TODO(NAME): set kernel arguments
+    // TODO(rhoeberg): set kernel arguments
     err = 0;
     err = clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld);
     int width = SCREEN_WIDTH;
@@ -631,20 +553,13 @@ void cleanup_cl(OpenCLData *cl)
 
 int main(int argc, char *argv[])
 {
-    
-    
+	ProgramState state;
+
     GLFWwindow *win;
     init_glfw(&win);
-    
+
     GLuint quad;
     create_quad(&quad);
-    
-    Vec3 *pixelData = (Vec3 *)malloc(sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    for (int i = 0; i < 480000; i++)
-    {
-        pixelData[i] = VEC3(0, 0, 0);
-    }
-    
     
     GLuint texture;
     glGenTextures(1, &texture);
@@ -671,12 +586,9 @@ int main(int argc, char *argv[])
     
     GLuint shaderProgram = create_shader("vertexshader.vs", "fragmentshader.frag");
     
-    
     float moveDuration = 0.5f;
     float moveStartTime = 0.0f;
     
-    //OpenCLData cl = init_cl(&world, win);
-    printf("here first\n");
     char *kernelFile = "raytracer-kernel.c";
     OpenCLData cl;
     cl_platform_id platform = NULL;
@@ -684,17 +596,12 @@ int main(int argc, char *argv[])
     cl_select_context(&platform, &cl.device_id, &cl.context);
     cl_load_kernel(&cl.context, &cl.device_id, kernelFile, &cl.commands, &cl.kernel, &world, &cl.inputWorld, &cl.outputDebug);
     
-    //clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), (void*)(&world), 0, NULL, NULL);
-    //err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
-    
     cl.outputTexture = clCreateFromGLTexture(cl.context, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, texture, NULL);
     if(!cl.outputTexture) {
         printf("Error: failed to create texture buffer\n");
         exit(1);
     }
     
-    //glFinish();
-    //clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
     CHECK_ERR(clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld));
     int width = SCREEN_WIDTH;
     int height = SCREEN_HEIGHT;
@@ -703,13 +610,12 @@ int main(int argc, char *argv[])
     CHECK_ERR(clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), &cl.outputTexture));
     CHECK_ERR(clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug));
     
-    
     int err = 0;
     cl_event evKernel, evReadBuf, evWriteBuf;
     
-    double frameDuration;
-    
+    double frameDuration = 0;
     bool renderOnce = false;
+
     while (!glfwWindowShouldClose(win))
     {
         double frameStart = glfwGetTime();
@@ -725,7 +631,6 @@ int main(int argc, char *argv[])
         
         float t = glfwGetTime();
         clSetKernelArg(cl.kernel, 5, sizeof(float), &t);
-        
         
         glFinish();
         clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
@@ -744,26 +649,6 @@ int main(int argc, char *argv[])
         // Wait for the command commands to get serviced before reading back results
         clEnqueueReleaseGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
         clFinish(cl.commands);
-        
-#if 0   
-        // CPU RENDER     
-        if(!renderOnce) {
-            int i = 0;
-            for(int y = 0; y < SCREEN_HEIGHT; y++) {
-                for(int x = 0; x < SCREEN_WIDTH; x++) {
-                    int yFlipped = SCREEN_HEIGHT - 1 - y;
-                    Ray ray = RayFor(cam, SCREEN_WIDTH, SCREEN_HEIGHT, x, yFlipped);
-                    pixelData[i] = WorldHit(&world, ray);
-                    i++;
-                }
-            }
-            renderOnce = true;
-        }
-#endif
-        
-        //glBindTexture(GL_TEXTURE_2D, texture);
-        //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_RGB, GL_FLOAT, &pixelData[0]);
-        //glBindTexture(GL_TEXTURE_2D, 0);
         
         glClearColor(1.0f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -787,7 +672,6 @@ int main(int argc, char *argv[])
     cleanup_cl(&cl);
     free(world.planes);
     free(world.spheres);
-    free(pixelData);
     glfwTerminate();
     
     return 0;
