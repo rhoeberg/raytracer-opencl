@@ -331,8 +331,8 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
     ray.d = d;
     
     struct World world;
-    world.bgCol = (float3)(0.0f, 1.0f, 0.0f);
-    world.ambient = (float3)(0.1f, 0.1f, 0.1f);
+    world.bgCol = (float3)(1.0f, 1.0f, 0.0f);
+    world.ambient = (float3)(0.0f, 0.0f, 0.0f);
     //world.sphereCount = 2;
     world.geometryCount = 0;
     world.sphereCount = 0;
@@ -385,7 +385,7 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
     world.pointLights[world.pointLightCount].color = (float3)(1.0f, 0.0f, 0.0f);
     world.pointLightCount += 1;
     
-    float3 col = WorldHit(&world, ray, 0);
+    float3 col = (float3)WorldHit(&world, ray, 0);
     
     if(x > 700) {
         //printf("y: %d\n", y);

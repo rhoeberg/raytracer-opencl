@@ -707,14 +707,12 @@ int main(int argc, char *argv[])
     int err = 0;
     cl_event evKernel, evReadBuf, evWriteBuf;
     
-    
+    double frameDuration;
     
     bool renderOnce = false;
     while (!glfwWindowShouldClose(win))
     {
-        
-        
-        
+        double frameStart = glfwGetTime();
         glfwPollEvents();
         
         ImGui_ImplOpenGL3_NewFrame();
@@ -722,7 +720,7 @@ int main(int argc, char *argv[])
         ImGui::NewFrame();
         bool show = true;
         ImGui::Begin("test", &show);
-        ImGui::Text("this is a test window");
+        ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
         
         float t = glfwGetTime();
@@ -781,6 +779,8 @@ int main(int argc, char *argv[])
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(win);
+
+	frameDuration = glfwGetTime() - frameStart;
     }
     
     
