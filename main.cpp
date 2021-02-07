@@ -411,6 +411,10 @@ int main(int argc, char *argv[])
     World world = InitializeDefaultWorld();
 	printf("HOST size of planes: %d\n", sizeof(world.planes));
 	printf("HOST size of vec3: %d\n", sizeof(Vec3));
+	printf("HOST size of plane: %d\n", sizeof(Plane));
+	printf("HOST size of mat: %d\n", sizeof(Material));
+	printf("HOST size of bool: %d\n", sizeof(bool));
+	printf("HOST size of float: %d\n", sizeof(float));
     
 	// ////////////////
 	// // INITIALIZE OPENCL

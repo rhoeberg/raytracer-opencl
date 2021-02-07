@@ -14,8 +14,8 @@
 #pragma pack(push, 1)
 struct World
 {
-    Vec3 bgCol;
-    Vec3 ambient;
+    cl_float3 bgCol;
+    cl_float3 ambient;
     
     Plane planes[MAX_PLANES];
     Sphere spheres[MAX_SPHERES];

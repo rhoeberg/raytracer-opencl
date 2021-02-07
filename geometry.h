@@ -5,8 +5,8 @@
 #pragma pack(push, 1)
 struct Plane
 {
-    Vec3 a;
-    Vec3 n;
+    cl_float3 a;
+    cl_float3 n;
     Material mat;
 };
 #pragma pack(pop)
@@ -14,7 +14,7 @@ struct Plane
 #pragma pack(push, 1)
 struct Sphere
 {
-    Vec3 c;
+    cl_float3 c;
     float r;
     Material mat;
 };

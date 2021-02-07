@@ -8,13 +8,14 @@
 #define DEGREES(radians) ((radians) * 180.0 / PI)
 
 #pragma pack(push, 1)
-union Vec3
+__declspec(align(16)) union Vec3
+/* union Vec3 */
 {
     struct {
-	float x, y, z;
+		float x, y, z;
     };
     struct {
-	float r, g, b;
+		float r, g, b;
     };
 };
 #pragma pack(pop)

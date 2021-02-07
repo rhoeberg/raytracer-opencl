@@ -38,31 +38,32 @@ World InitializeDefaultWorld2()
     world.maxPlanes = 10;
     world.maxSpheres = 10;
     world.maxPointLights = 5;
-    world.bgCol = VEC3(0,0,0);
-    world.ambient = VEC3(0.2f, 0.2f, 0.2f);
+    world.bgCol = {0,0,0};
+    world.ambient = {0.2f, 0.2f, 0.2f};
     
     //world.planes = (Plane *)malloc(sizeof(Plane) * world.maxPlanes);
     //world.spheres = (Sphere *)malloc(sizeof(Sphere) * world.maxSpheres);
     //world.geometries = (Geometry *)malloc(sizeof(Geometry) * (world.maxSpheres + world.maxPlanes));
     //world.pointLights = (PointLight*)malloc(sizeof(PointLight) * world.maxPointLights);
     
-    Material mat1 = MATERIAL(VEC3(0.5f, 0.2f, 0.2f),
-                             VEC3(0.8f, 0.2f, 0.1f),
-                             VEC3(0.2f, 0.2f, 0.2f),
+    Material mat1 = MATERIAL({0.5f, 0.2f, 0.2f},
+                             {0.8f, 0.2f, 0.1f},
+                             {0.2f, 0.2f, 0.2f},
                              6.0f);
-    Material mat2 = MATERIAL(VEC3(1.0f, 0.2f, 0.2f),
-                             VEC3(0.3f, 1.0f, 0.3f),
-                             VEC3(0.8f, 0.8f, 0.8f),
+    Material mat2 = MATERIAL({1.0f, 0.2f, 0.2f},
+                             {0.3f, 1.0f, 0.3f},
+                             {0.8f, 0.8f, 0.8f},
                              15.0f);
-    Material mat3 = MATERIAL(VEC3(0.8f, 0.8f, 0.8f),
-                             VEC3(0.1f, 0.1f, 0.1f),
-                             VEC3(0.3f, 0.3f, 0.3f),
+    Material mat3 = MATERIAL({0.8f, 0.8f, 0.8f},
+                             {0.1f, 0.1f, 0.1f},
+                             {0.3f, 0.3f, 0.3f},
                              15.0f);
     
     
-    Sphere sphere1 = SPHERE(VEC3(0.0f, 0, -3.0f), 0.5f, mat2);
-    sphere1.mat.diffuse = VEC3(0.1, 0.5, 0.8);
-    sphere1.mat.reflection = VEC3(0.7, 0.1, 0.1);
+    Sphere sphere1 = SPHERE({0.0f, 0, -3.0f}, 0.5f, mat2);
+    // sphere1.mat.diffuse = cl_float3(VEC3(0.1, 0.5, 0.8);
+    sphere1.mat.diffuse = {0.1, 0.5, 0.8};
+    sphere1.mat.reflection = {0.7, 0.1, 0.1};
     AddSphere(&world, sphere1);
     
     
@@ -93,12 +94,12 @@ World InitializeDefaultWorld2()
 #endif
     
     
-    world.dirLight = DIRLIGHT(VEC3(0.2f, -1.0f, -0.2f), VEC3(0.3f, 0.3f, 0));
+    world.dirLight = DIRLIGHT({0.2f, -1.0f, -0.2f}, {0.3f, 0.3f, 0});
     
-    PointLight pointLight = POINTLIGHT(VEC3(2.0f, 0.5f, 0.0f),
-                                       VEC3(0.5f, 0.2f, 0.2f));
-    PointLight pointLight2 = POINTLIGHT(VEC3(-2.0f, 0.5f, -5.0f),
-                                        VEC3(0.2f, 0.3f, 0.6f));
+    PointLight pointLight = POINTLIGHT(cl_float3{2.0f, 0.5f, 0.0f},
+                                       cl_float3{0.5f, 0.2f, 0.2f});
+    PointLight pointLight2 = POINTLIGHT(cl_float3{-2.0f, 0.5f, -5.0f},
+                                        cl_float3{0.2f, 0.3f, 0.6f});
     AddPointLight(&world, pointLight);
     AddPointLight(&world, pointLight2);
     
@@ -108,20 +109,20 @@ World InitializeDefaultWorld2()
 World InitializeDefaultWorld()
 {
     World world;
-    world.bgCol = VEC3(1.0f, 1.0f, 0.0f);
-    world.ambient = VEC3(0.0f, 0.0f, 0.0f);
+    world.bgCol = {1.0f, 1.0f, 0.0f};
+    world.ambient = {0.0f, 0.0f, 0.0f};
     //world.sphereCount = 2;
     world.geometryCount = 0;
     world.sphereCount = 0;
     world.planeCount = 0;
     {
-        world.spheres[0].mat.diffuse = VEC3(0.8f,0.8f,0.0f);
-        world.spheres[0].mat.specular = VEC3(0.5f, 0.5f, 0.5f);
+        world.spheres[0].mat.diffuse = {0.8f,0.8f,0.0f};
+        world.spheres[0].mat.specular = {0.5f, 0.5f, 0.5f};
         world.spheres[0].mat.shine = 100.0f;
-        world.spheres[0].c = VEC3(-0.8f, 0.2f, -3.0f);
+        world.spheres[0].c = {-0.8f, 0.2f, -3.0f};
         world.spheres[0].r = 0.5f;
         world.spheres[0].mat.mirror = true;
-        world.spheres[0].mat.reflection = VEC3(0.5f, 0.5f, 0.5f);
+        world.spheres[0].mat.reflection = {0.5f, 0.5f, 0.5f};
         world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
         world.geometryCount += 1;
@@ -129,14 +130,14 @@ World InitializeDefaultWorld()
     }
     
     {
-        world.spheres[1].mat.diffuse = VEC3(0.0f,0.8f,0.8f);
-        world.spheres[1].mat.specular = VEC3(0.5f, 0.5f, 0.5f);
+        world.spheres[1].mat.diffuse = {0.0f,0.8f,0.8f};
+        world.spheres[1].mat.specular = {0.5f, 0.5f, 0.5f};
         world.spheres[1].mat.shine = 100.0f;
-        Vec3 center = VEC3(0.8f, 0.0f, -3.0f);
+        cl_float3 center = {0.8f, 0.0f, -3.0f};
         world.spheres[1].c = center;
         world.spheres[1].r = 0.5f;
         world.spheres[1].mat.mirror = true;
-        world.spheres[1].mat.reflection = VEC3(0.5f, 0.5f, 0.5f);
+        world.spheres[1].mat.reflection = {0.5f, 0.5f, 0.5f};
         world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
         world.geometryCount += 1;
@@ -144,22 +145,22 @@ World InitializeDefaultWorld()
     }
     
     {
-        world.planes[0].a = VEC3(0, 0.5f, 0);
-        world.planes[0].n = VEC3(0, -1, 0);
-        world.planes[0].mat.diffuse = VEC3(0, 1, 0);
-        world.planes[0].mat.specular = VEC3(0.2f, 0.2f, 0.2f);
+        world.planes[0].a = {0, 0.5f, 0};
+        world.planes[0].n = {0, -1, 0};
+        world.planes[0].mat.diffuse = {0, 1, 0};
+        world.planes[0].mat.specular = {0.2f, 0.2f, 0.2f};
         world.geometries[world.geometryCount].id = world.planeCount;
         world.geometries[world.geometryCount].type = Geo_Plane;
         world.geometryCount += 1;
         world.planeCount += 1;
     }
     
-    world.dirLight.dir = VEC3(-0.5f, -0.5f, -0.5f);
-    world.dirLight.color = VEC3(0.4f, 0.4f, 0.4f);
+    world.dirLight.dir = {-0.5f, -0.5f, -0.5f};
+    world.dirLight.color = {0.4f, 0.4f, 0.4f};
     
     world.pointLightCount = 0;
-    world.pointLights[world.pointLightCount].pos = VEC3(-2.0f, -2.0f, 4.0f);
-    world.pointLights[world.pointLightCount].color = VEC3(1.0f, 0.0f, 0.0f);
+    world.pointLights[world.pointLightCount].pos = {-2.0f, -2.0f, 4.0f};
+    world.pointLights[world.pointLightCount].color = {1.0f, 0.0f, 0.0f};
     world.pointLightCount += 1;
 	
 	return world;
