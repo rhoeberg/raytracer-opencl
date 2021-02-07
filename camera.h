@@ -12,4 +12,7 @@ struct Camera
     Vec3 v;
     
     float angle;
+
+	float yaw;
+	float pitch;
 };

@@ -88,14 +88,6 @@ struct Input
 
 struct ProgramState
 {
-	bool firstMouse = false;
-	float lastX;
-	float lastY;
-	float mouseX;
-	float mouseY;
-
-	float camYaw;
-	float camPitch;
 	Camera cam;
 
 	bool moving = true;

@@ -7,73 +7,35 @@
 #include "raytracer.cpp"
 #include "world.cpp"
 
-bool keys[1024];
-bool registeredKeys[1024];
-
-static bool firstMouse = false;
-static float lastX;
-static float lastY;
-static float mouseX;
-static float mouseY;
-
-static float camYaw;
-static float camPitch;
-static Camera cam;
-
-static bool moving = true;
-static bool movedLastFrame = true;
-float moveStartTimer = 0.0f;
-
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode)
 {
-	// TODO (rhoe) user glfwUserPointer to avoid global input variables
+	Input *input = (Input*)glfwGetWindowUserPointer(window);
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
     
     if (action == GLFW_PRESS)
     {
-        keys[key] = true;
+        input->keys[key] = true;
     }
     else if (action == GLFW_RELEASE)
     {
-        keys[key] = false;
+        input->keys[key] = false;
     }
 }
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 {
-    if (firstMouse)
+	Input *input = (Input*)glfwGetWindowUserPointer(window);
+
+	input->mouseX = xpos;
+	input->mouseY = ypos;
+
+    if (input->firstMouse)
     {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
+        input->lastX = xpos;
+        input->lastY = ypos;
+        input->firstMouse = false;
     }
-    
-    double xoffset = xpos - lastX;
-    double yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-    
-    xoffset *= MOUSE_SENSITIVITY;
-    yoffset *= MOUSE_SENSITIVITY;
-    
-    camYaw -= xoffset;
-    camPitch += yoffset;
-    
-    if (camPitch > 89.0f)
-        camPitch = 89.0f;
-    if (camPitch < -89.0f)
-        camPitch = -89.0f;
-    
-    Vec3 dir;
-    dir.x = cos(RADIANS(camYaw)) * cos(RADIANS(camPitch));
-    dir.y = sin(RADIANS(camPitch));
-    dir.z = sin(RADIANS(camYaw)) * cos(RADIANS(camPitch));
-    
-    cam.g = Norm(dir);
-    cam.w = cam.g * -1;
-    cam.u = Norm(Cross(cam.t, cam.w));
-    cam.v = Cross(cam.w, cam.u);
 }
 
 static void error_callback(int error, const char *description)
@@ -164,7 +126,7 @@ void init_glfw(GLFWwindow **win)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     
-    *win = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "great concept", NULL, NULL);
+    *win = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "opencl raytracer by rhoeberg", NULL, NULL);
     if (!win)
     {
         glfwTerminate();
@@ -336,39 +298,15 @@ void cl_select_context(cl_platform_id* platform, cl_device_id* device, cl_contex
 #endif
 }
 
-
 void cl_load_kernel(cl_context* context, cl_device_id* device, const char* source, cl_command_queue* command_queue, cl_kernel* kernel, World *world, cl_mem *inputWorld, cl_mem *outputDebug) {
     
     cl_int err;
     cl_program program;
     char *source_str = readFile(source);;
     
-#if 0
-    cl_mem memobj;
-    char string[MEM_SIZE];
-    
-    FILE *fp;
-    size_t source_size;
-    
-    /* Load the source code containing the kernel*/
-    fp = fopen(source, "r");
-    if (!fp) {
-        fprintf(stderr, "Failed to load kernel.\n");
-        exit(1);
-    }
-    source_str = (char *) malloc(MAX_SOURCE_SIZE);
-    source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
-    fclose(fp);
-#endif
-    
-    
     // create a command queue
     *command_queue = clCreateCommandQueue(*context, *device, 0, &err);
     CHECK_ERR(err);
-    
-    
-    //memobj = clCreateBuffer(*context, CL_MEM_READ_WRITE, MEM_SIZE * sizeof(char), NULL, &err);
-    //CHECK_ERR(err);
     
     *inputWorld = clCreateBuffer(*context, CL_MEM_READ_ONLY, sizeof(World), NULL, &err);
     CHECK_ERR(err);
@@ -376,12 +314,10 @@ void cl_load_kernel(cl_context* context, cl_device_id* device, const char* sourc
     CHECK_ERR(err);
     CHECK_ERR(clEnqueueWriteBuffer(*command_queue, *inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL));
     
-    /* Create Kernel Program from the sour
-    ce */
+    /* Create Kernel Program from the source */
     program = clCreateProgramWithSource(*context, 1, (const char **) &source_str,
                                         (const size_t *) NULL, &err);
     CHECK_ERR(err);
-    
     
     /* Build Kernel Program */
     err = clBuildProgram(program, 1, device, NULL, NULL, NULL);
@@ -424,18 +360,43 @@ GLuint create_texture()
 	return texture;
 }
 
+void initialize_opencl(OpenCLData *cl, World *world, GLuint texture)
+{
+    char *kernelFile = "raytracer-kernel.cl";
+    cl_platform_id platform = NULL;
+    cl_select(&platform, &cl->device_id);
+    cl_select_context(&platform, &cl->device_id, &cl->context);
+    cl_load_kernel(&cl->context, &cl->device_id, kernelFile, &cl->commands, &cl->kernel, world, &cl->inputWorld, &cl->outputDebug);
+    cl->outputTexture = clCreateFromGLTexture(cl->context, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, texture, NULL);
+    if(!cl->outputTexture) {
+        printf("Error: failed to create texture buffer\n");
+        exit(1);
+    }
+    CHECK_ERR(clSetKernelArg(cl->kernel, 0, sizeof(cl_mem), (void*)&cl->inputWorld));
+    int width = SCREEN_WIDTH;
+    int height = SCREEN_HEIGHT;
+    CHECK_ERR(clSetKernelArg(cl->kernel, 1, sizeof(int), &width));
+    CHECK_ERR(clSetKernelArg(cl->kernel, 2, sizeof(int), &height));
+    CHECK_ERR(clSetKernelArg(cl->kernel, 3, sizeof(cl_mem), &cl->outputTexture));
+    CHECK_ERR(clSetKernelArg(cl->kernel, 4, sizeof(cl_mem), (void*)&cl->outputDebug));
+}
+
 int main(int argc, char *argv[])
 {
     GLFWwindow *win;
     init_glfw(&win);
 
+	Input input;
+	glfwSetWindowUserPointer(win, &input);
+
     GLuint quad = create_quad();
     GLuint texture = create_texture();
+    GLuint shaderProgram = create_shader("vertexshader.vs", "fragmentshader.frag");
     
-    cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
-    camPitch = asin(cam.g.y);
-    camYaw = atan2(cam.g.x, cam.g.z);
-    
+    Camera cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
+
+	////////////////
+	// INITIALIZE IMGUI
     const char* glsl_version = "#version 150";
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -443,50 +404,29 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_InitForOpenGL(win, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     
+	////////////////
+	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
     
-    GLuint shaderProgram = create_shader("vertexshader.vs", "fragmentshader.frag");
-    
-    float moveDuration = 0.5f;
-    float moveStartTime = 0.0f;
-    
-    char *kernelFile = "raytracer-kernel.cl";
-    OpenCLData cl;
-    cl_platform_id platform = NULL;
-    cl_select(&platform, &cl.device_id);
-    cl_select_context(&platform, &cl.device_id, &cl.context);
-    cl_load_kernel(&cl.context, &cl.device_id, kernelFile, &cl.commands, &cl.kernel, &world, &cl.inputWorld, &cl.outputDebug);
-    
-    cl.outputTexture = clCreateFromGLTexture(cl.context, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, texture, NULL);
-    if(!cl.outputTexture) {
-        printf("Error: failed to create texture buffer\n");
-        exit(1);
-    }
-    
-    CHECK_ERR(clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld));
-    int width = SCREEN_WIDTH;
-    int height = SCREEN_HEIGHT;
-    CHECK_ERR(clSetKernelArg(cl.kernel, 1, sizeof(int), &width));
-    CHECK_ERR(clSetKernelArg(cl.kernel, 2, sizeof(int), &height));
-    CHECK_ERR(clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), &cl.outputTexture));
-    CHECK_ERR(clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug));
-    
+	// ////////////////
+	// // INITIALIZE OPENCL
+	OpenCLData cl;
+	initialize_opencl(&cl, &world, texture);
     int err = 0;
-    cl_event evKernel, evReadBuf, evWriteBuf;
     
     double frameDuration = 0;
-    bool renderOnce = false;
-
     while (!glfwWindowShouldClose(win))
     {
         double frameStart = glfwGetTime();
         glfwPollEvents();
+
+		ProcessMouseMovement(&cam, &input);
         
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         bool show = true;
-        ImGui::Begin("test", &show);
+        ImGui::Begin("performance", &show);
         ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
         
@@ -511,7 +451,7 @@ int main(int argc, char *argv[])
         clEnqueueReleaseGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
         clFinish(cl.commands);
         
-        glClearColor(1.0f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         glUseProgram(shaderProgram);
@@ -526,7 +466,7 @@ int main(int argc, char *argv[])
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(win);
 
-	frameDuration = glfwGetTime() - frameStart;
+		frameDuration = glfwGetTime() - frameStart;
     }
     
     
