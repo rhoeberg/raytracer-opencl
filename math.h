@@ -7,6 +7,7 @@
 #define RADIANS(degrees) ((degrees) * PI / 180.0)
 #define DEGREES(radians) ((radians) * 180.0 / PI)
 
+#pragma pack(push, 1)
 union Vec3
 {
     struct {
@@ -16,12 +17,15 @@ union Vec3
 	float r, g, b;
     };
 };
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 struct Mat3x3
 {
 // ROW MAJOR [ROW][COLUMN]
     float e[3][3];
 };
+#pragma pack(pop)
 
 inline Vec3 VEC3(float x, float y, float z);
 inline Vec3 operator+(Vec3 a, Vec3 b);

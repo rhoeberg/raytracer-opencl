@@ -4,19 +4,19 @@
 #define MAX_GEOMETRIES (MAX_PLANES * MAX_SPHERES)
 #define MAX_POINTLIGHTS 16
 
-struct DirLight
+struct __attribute__ ((packed)) DirLight
 {
     float3 dir;
     float3 color;
 };
 
-struct PointLight
+struct __attribute__ ((packed)) PointLight
 {
     float3 pos;
     float3 color;
 };
 
-struct Material
+struct __attribute__ ((packed)) Material
 {
     float3 diffuse;
     float3 specular;
@@ -26,20 +26,20 @@ struct Material
     float shine;
 };
 
-struct Ray
+struct __attribute__ ((packed)) Ray
 {
     float3 o;
     float3 d;
 };
 
-struct Plane
+struct __attribute__ ((packed)) Plane
 {
     float3 a;
     float3 n;
     struct Material mat;
 };
 
-struct Sphere
+struct __attribute__ ((packed)) Sphere
 {
     float3 c;
     float r;
@@ -51,7 +51,7 @@ enum GeometryType{
     Geo_Plane
 };
 
-struct Geometry
+struct __attribute__ ((packed)) Geometry
 {
     int id;
     enum GeometryType type;
@@ -81,6 +81,12 @@ struct __attribute__ ((packed)) World
     int pointLightCount;
 };
 
+struct __attribute__ ((packed)) Vec3
+{
+	float x;
+	float y;
+	float z;
+};
 
 struct Hit
 {
@@ -88,13 +94,6 @@ struct Hit
     struct Ray ray;
     float3 normal;
     struct Material mat;
-};
-
-struct Vec3
-{
-    float x;
-    float y;
-    float z;
 };
 
 inline float Square(float a)
@@ -305,7 +304,7 @@ float3 WorldHit( const struct World *world, struct Ray ray, int n)
 
 
 // OpenCL Kernel Function for element by element
-__kernel void WorldHitKernel(__global const struct World *world2, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
+__kernel void WorldHitKernel(__global struct World *world2, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
                              float time)
 {
     
@@ -330,87 +329,78 @@ __kernel void WorldHitKernel(__global const struct World *world2, int width, int
     ray.o = o;
     ray.d = d;
     
-    struct World world;
-    world.bgCol = (float3)(1.0f, 1.0f, 0.0f);
-    world.ambient = (float3)(0.0f, 0.0f, 0.0f);
-    //world.sphereCount = 2;
-    world.geometryCount = 0;
-    world.sphereCount = 0;
-    world.planeCount = 0;
-    {
-        world.spheres[0].mat.diffuse = (float3)(0.8f,0.8f,0.0f);
-        world.spheres[0].mat.specular = (float3)(0.5f, 0.5f, 0.5f);
-        world.spheres[0].mat.shine = 100.0f;
-        world.spheres[0].c = (float3)(-0.8f, sin(time * 0.9f) * 0.2f, -3.0f);
-        world.spheres[0].r = 0.5f;
-        world.spheres[0].mat.mirror = true;
-        world.spheres[0].mat.reflection = (float3)(0.5f, 0.5f, 0.5f);
-        world.geometries[world.geometryCount].id = world.sphereCount;
-        world.geometries[world.geometryCount].type = Geo_Sphere;
-        world.geometryCount += 1;
-        world.sphereCount += 1;
+    /* struct World world; */
+    /* world.bgCol = (float3)(1.0f, 1.0f, 0.0f); */
+    /* world.ambient = (float3)(0.0f, 0.0f, 0.0f); */
+    /* //world.sphereCount = 2; */
+    /* world.geometryCount = 0; */
+    /* world.sphereCount = 0; */
+    /* world.planeCount = 0; */
+    /* { */
+    /*     world.spheres[0].mat.diffuse = (float3)(0.8f,0.8f,0.0f); */
+    /*     world.spheres[0].mat.specular = (float3)(0.5f, 0.5f, 0.5f); */
+    /*     world.spheres[0].mat.shine = 100.0f; */
+    /*     world.spheres[0].c = (float3)(-0.8f, sin(time * 0.9f) * 0.2f, -3.0f); */
+    /*     world.spheres[0].r = 0.5f; */
+    /*     world.spheres[0].mat.mirror = true; */
+    /*     world.spheres[0].mat.reflection = (float3)(0.5f, 0.5f, 0.5f); */
+    /*     world.geometries[world.geometryCount].id = world.sphereCount; */
+    /*     world.geometries[world.geometryCount].type = Geo_Sphere; */
+    /*     world.geometryCount += 1; */
+    /*     world.sphereCount += 1; */
+    /* } */
+    
+    /* { */
+    /*     world.spheres[1].mat.diffuse = (float3)(0.0f,0.8f,0.8f); */
+    /*     world.spheres[1].mat.specular = (float3)(0.5f, 0.5f, 0.5f); */
+    /*     world.spheres[1].mat.shine = 100.0f; */
+    /*     float3 center = (float3)(0.8f, 0.0f, -3.0f); */
+    /*     world.spheres[1].c = center; */
+    /*     world.spheres[1].r = 0.5f; */
+    /*     world.spheres[1].mat.mirror = true; */
+    /*     world.spheres[1].mat.reflection = (float3)(0.5f, 0.5f, 0.5f); */
+    /*     world.geometries[world.geometryCount].id = world.sphereCount; */
+    /*     world.geometries[world.geometryCount].type = Geo_Sphere; */
+    /*     world.geometryCount += 1; */
+    /*     world.sphereCount += 1; */
+    /* } */
+    
+    /* { */
+    /*     world.planes[0].a = (float3)(0, 0.5f, 0); */
+    /*     world.planes[0].n = (float3)(0, -1, 0); */
+    /*     world.planes[0].mat.diffuse = (float3)(0, 1, 0); */
+    /*     world.planes[0].mat.specular = (float3)(0.2f, 0.2f, 0.2f); */
+    /*     world.geometries[world.geometryCount].id = world.planeCount; */
+    /*     world.geometries[world.geometryCount].type = Geo_Plane; */
+    /*     world.geometryCount += 1; */
+    /*     world.planeCount += 1; */
+    /* } */
+    
+    /* world.dirLight.dir = (float3)(-0.5f, sin(time * 0.5f), -0.5f); */
+    /* world.dirLight.color = (float3)(0.4f, 0.4f, 0.4f); */
+    
+    /* world.pointLightCount = 0; */
+    /* world.pointLights[world.pointLightCount].pos = (float3)(-2.0f, -2.0f, 4.0f); */
+    /* world.pointLights[world.pointLightCount].color = (float3)(1.0f, 0.0f, 0.0f); */
+    /* world.pointLightCount += 1; */
+    
+    /* float3 col = (float3)WorldHit(&world, ray, 0); */
+    float3 col = (float3)WorldHit(&world2, ray, 0);
+    
+    if(x == 0 && y == 0) {
+        printf("bgcol: %f %f %f\n", world2->bgCol.x, world2->bgCol.y, world2->bgCol.z);
+        printf("ambient: %f %f %f\n", world2->ambient.x, world2->ambient.y, world2->ambient.z);
+		printf("size of planes: %d\n", sizeof(world2->planes));
+        printf("world planeCount: %d\n", world2->planeCount);
+        printf("world sphereCount: %d\n", world2->sphereCount);
+        printf("world pointlightCount: %d\n", world2->pointLightCount);
+		printf("sizeof float3: %d\n", sizeof(float3));
+		struct Vec3 v;
+		printf("sizeof vec3: %d\n", sizeof(v));
     }
+
     
-    {
-        world.spheres[1].mat.diffuse = (float3)(0.0f,0.8f,0.8f);
-        world.spheres[1].mat.specular = (float3)(0.5f, 0.5f, 0.5f);
-        world.spheres[1].mat.shine = 100.0f;
-        float3 center = (float3)(0.8f, 0.0f, -3.0f);
-        world.spheres[1].c = center;
-        world.spheres[1].r = 0.5f;
-        world.spheres[1].mat.mirror = true;
-        world.spheres[1].mat.reflection = (float3)(0.5f, 0.5f, 0.5f);
-        world.geometries[world.geometryCount].id = world.sphereCount;
-        world.geometries[world.geometryCount].type = Geo_Sphere;
-        world.geometryCount += 1;
-        world.sphereCount += 1;
-    }
-    
-    {
-        world.planes[0].a = (float3)(0, 0.5f, 0);
-        world.planes[0].n = (float3)(0, -1, 0);
-        world.planes[0].mat.diffuse = (float3)(0, 1, 0);
-        world.planes[0].mat.specular = (float3)(0.2f, 0.2f, 0.2f);
-        world.geometries[world.geometryCount].id = world.planeCount;
-        world.geometries[world.geometryCount].type = Geo_Plane;
-        world.geometryCount += 1;
-        world.planeCount += 1;
-    }
-    
-    world.dirLight.dir = (float3)(-0.5f, sin(time * 0.5f), -0.5f);
-    world.dirLight.color = (float3)(0.4f, 0.4f, 0.4f);
-    
-    world.pointLightCount = 0;
-    world.pointLights[world.pointLightCount].pos = (float3)(-2.0f, -2.0f, 4.0f);
-    world.pointLights[world.pointLightCount].color = (float3)(1.0f, 0.0f, 0.0f);
-    world.pointLightCount += 1;
-    
-    float3 col = (float3)WorldHit(&world, ray, 0);
-    
-    if(x > 700) {
-        //printf("y: %d\n", y);
-        //printf("col: %f %f %f \n", col.x, col.y, col.z);
-        //write_imagef(texture, (int2)(x, y), (float4)(col, 1.0f));
-    }
-    
+		// WRITE IMAGE
     int2 coord = (int2)(x, y);
     write_imagef(texture, coord, (float4)(col, 1.0f));
-    
-    
-    //float3 col = WorldHit(&world, rays[i], 0);
-    //pixelData[i].x = sin((float)i / 10000.0f);
-    //int i = width * y + x;
-    //pixelData[i].x = col.x;
-    //pixelData[i].y = col.y;
-    //pixelData[i].z = col.z;
-    
-    //float3 col2 = (float3)(0,0,0);
-    //write_imagef(texture, (int2)(x, y), (float4)(1.0f, 0.0f, 0.0f, 1.0f));
-    
-#if 0    
-    if(x == 400 && y == 400) {
-        printf("world spherecount: %d\n", world2->sphereCount);
-    }
-#endif
-    
 }

@@ -308,7 +308,9 @@ void cl_load_kernel(cl_context* context, cl_device_id* device, const char* sourc
     *command_queue = clCreateCommandQueue(*context, *device, 0, &err);
     CHECK_ERR(err);
     
+	// create buffers
     *inputWorld = clCreateBuffer(*context, CL_MEM_READ_ONLY, sizeof(World), NULL, &err);
+    // *inputWorld = clCreateBuffer(*context, CL_MEM_USE_HOST_PTR, sizeof(World), world, &err);
     CHECK_ERR(err);
     *outputDebug = clCreateBuffer(*context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, &err);
     CHECK_ERR(err);
@@ -407,6 +409,8 @@ int main(int argc, char *argv[])
 	////////////////
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
+	printf("HOST size of planes: %d\n", sizeof(world.planes));
+	printf("HOST size of vec3: %d\n", sizeof(Vec3));
     
 	// ////////////////
 	// // INITIALIZE OPENCL
@@ -438,7 +442,6 @@ int main(int argc, char *argv[])
         
         // Execute the kernel over the entire range of our 1d input data set
         // using the maximum number of work group items for this device
-        //
         size_t global[] = {SCREEN_WIDTH, SCREEN_HEIGHT};
         err = clEnqueueNDRangeKernel(cl.commands, cl.kernel, 2, NULL, global, NULL, 0, 0, 0);
         if (err)

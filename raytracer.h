@@ -4,6 +4,7 @@
 
 struct World;
 
+#pragma pack(push, 1)
 struct Material
 {
     Vec3 diffuse;
@@ -13,6 +14,7 @@ struct Material
     Vec3 reflection;
     float shine;
 };
+#pragma pack(pop)
 
 struct Ray
 {
