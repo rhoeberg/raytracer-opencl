@@ -75,6 +75,17 @@ struct OpenCLData
 	size_t local;
 };
 
+struct Input
+{
+	bool firstMouse = false;
+	double lastX;
+	double lastY;
+	double mouseX;
+	double mouseY;
+	bool keys[1024];
+	bool registeredKeys[1024];
+};
+
 struct ProgramState
 {
 	bool firstMouse = false;

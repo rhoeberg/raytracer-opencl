@@ -187,7 +187,7 @@ void init_glfw(GLFWwindow **win)
     glEnable(GL_DEPTH_TEST);
 }
 
-void create_quad(GLuint *VAO)
+GLuint create_quad()
 {
     GLfloat vertices[] = {
         1.0f, 1.0f, 0.0f, 1.0f, 1.0f,   // top right
@@ -199,12 +199,11 @@ void create_quad(GLuint *VAO)
         0, 1, 2,
         0, 3, 1};
     
-    // GLuint VBO, VAO, EBO;
-    GLuint VBO, EBO;
-    glGenVertexArrays(1, VAO);
+    GLuint VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
-    glBindVertexArray(*VAO);
+    glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -214,6 +213,8 @@ void create_quad(GLuint *VAO)
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	return VAO;
 }
 
 /**
@@ -401,148 +402,6 @@ void cl_load_kernel(cl_context* context, cl_device_id* device, const char* sourc
     CHECK_ERR(err);
 }
 
-OpenCLData init_cl(World *world, GLFWwindow *win)
-{
-    int err;
-    
-    //size_t global;
-    //size_t local;
-    
-    OpenCLData cl;
-    
-    char *kernelFile = "raytracer-kernel.c";
-    char *kernelSource = readFile(kernelFile);
-    
-    
-#if 0    
-	/*Step1: Getting platforms and choose an available one.*/
-	cl_uint numPlatforms; //the NO. of platforms
-	cl_platform_id platform = NULL; //the chosen platform
-	cl_int status = clGetPlatformIDs(0, NULL, &numPlatforms);
-	if (status != CL_SUCCESS)
-	{
-        printf("Error: Getting platforms!");
-		exit(1);
-	}
-    
-	/*For clarity, choose the first available platform. */
-    if (numPlatforms > 0)
-	{
-        cl_platform_id *platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));
-		status = clGetPlatformIDs(numPlatforms, platforms, NULL);
-		platform = platforms[0];
-		free(platforms);
-	}
-    
-    // connect to compute device
-    int gpu = 1;
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &cl.device_id, NULL);
-    if(err != CL_SUCCESS){
-        printf("Error: Failed to create a device group!\n");
-        exit(1);
-    }
-    
-    // set CL/GL context
-    cl_context_properties props[] =
-    {
-        CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
-        CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
-        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
-        0
-    };
-    
-    // create compute context
-    cl.context = clCreateContext(props, 1, &cl.device_id, NULL, NULL, &err);
-    if(!cl.context) {
-        printf("Error: failed to create a compute context!\n");
-        exit(1);
-    }
-    
-    // create commands
-    cl.commands = clCreateCommandQueue(cl.context, cl.device_id, 0, &err);
-    if(!cl.commands) {
-        printf("Error: failed to create a command commands!\n");
-        exit(1);
-    }
-    
-    // create compute program from source buffer
-    cl.program = clCreateProgramWithSource(cl.context, 1, (const char**) &kernelSource, NULL, &err);
-    if(!cl.program) {
-        printf("Error: Failed to create compute program!\n");
-        exit(1);
-    }
-    
-    // build program executable
-    err = clBuildProgram(cl.program, 1, &cl.device_id, NULL, NULL, NULL);
-    if(err != CL_SUCCESS) {
-        size_t len;
-        char buffer[65536];
-        
-        printf("Error: Failed to build program executable!\n");
-        clGetProgramBuildInfo(cl.program, cl.device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), &buffer, &len);
-        printf("%s\n", buffer);
-        exit(1);
-    }
-    
-    // create compute kernel
-    cl.kernel = clCreateKernel(cl.program, "WorldHitKernel", &err);
-    if(!cl.kernel || err != CL_SUCCESS) {
-        printf("Error: Failed to create compute kernel!\n");
-        exit(1);
-    }
-    
-    // TODO(rhoeberg): create memory buffers here
-    cl.inputWorld = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(World), NULL, NULL);
-    //cl.inputRays = clCreateBuffer(cl.context, CL_MEM_READ_ONLY, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
-    //cl.outputPixels = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Vec3) * SCREEN_WIDTH * SCREEN_HEIGHT, NULL, NULL);
-    cl.outputDebug = clCreateBuffer(cl.context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, NULL);
-    
-    if(!cl.inputWorld) {
-        printf("Error: Failed to create memory buffers\n");
-        exit(1);
-    }
-    
-#endif
-    
-    cl_platform_id platform = NULL;
-    cl_select(&platform, &cl.device_id);
-    cl_select_context(&platform, &cl.device_id, &cl.context);
-    cl_load_kernel(&cl.context, &cl.device_id, kernelFile, &cl.commands, &cl.kernel, world, &cl.inputWorld, &cl.outputDebug);
-    
-    err = clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL);
-    //err = clEnqueueWriteBuffer(cl.commands, cl.inputRays, CL_TRUE, 0, sizeof(Ray) * SCREEN_WIDTH * SCREEN_HEIGHT, rays, 0, NULL, &evWriteBuf);
-    
-    // TODO(rhoeberg): set kernel arguments
-    err = 0;
-    err = clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld);
-    int width = SCREEN_WIDTH;
-    int height = SCREEN_HEIGHT;
-    err |= clSetKernelArg(cl.kernel, 1, sizeof(int), &width);
-    err |= clSetKernelArg(cl.kernel, 2, sizeof(int), &height);
-    //err |= clSetKernelArg(cl.kernel, 3, sizeof(cl_mem), (void*)&cl.outputPixels);
-    err |= clSetKernelArg(cl.kernel, 4, sizeof(cl_mem), (void*)&cl.outputDebug);
-    if(err != CL_SUCCESS) {
-        printf("Error: Failed to set kernel arguments! %d\n", err);
-        exit(1);
-    }
-    
-    
-    // Get the maximum work group size for executing the kernel on the device
-    //
-    err = clGetKernelWorkGroupInfo(cl.kernel, cl.device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(cl.local), &cl.local, NULL);
-    if (err != CL_SUCCESS)
-    {
-        printf("Error: Failed to retrieve kernel work group info! %d\n", err);
-        exit(1);
-    }
-    
-    
-    // cleanup
-    free(kernelSource);
-    
-    return cl;
-}
-
 void cleanup_cl(OpenCLData *cl)
 {
     clReleaseProgram(cl->program);
@@ -551,17 +410,9 @@ void cleanup_cl(OpenCLData *cl)
     clReleaseContext(cl->context);
 }
 
-int main(int argc, char *argv[])
+GLuint create_texture()
 {
-	ProgramState state;
-
-    GLFWwindow *win;
-    init_glfw(&win);
-
-    GLuint quad;
-    create_quad(&quad);
-    
-    GLuint texture;
+	GLuint texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     
@@ -570,6 +421,16 @@ int main(int argc, char *argv[])
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+	return texture;
+}
+
+int main(int argc, char *argv[])
+{
+    GLFWwindow *win;
+    init_glfw(&win);
+
+    GLuint quad = create_quad();
+    GLuint texture = create_texture();
     
     cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
     camPitch = asin(cam.g.y);
@@ -589,7 +450,7 @@ int main(int argc, char *argv[])
     float moveDuration = 0.5f;
     float moveStartTime = 0.0f;
     
-    char *kernelFile = "raytracer-kernel.c";
+    char *kernelFile = "raytracer-kernel.cl";
     OpenCLData cl;
     cl_platform_id platform = NULL;
     cl_select(&platform, &cl.device_id);
