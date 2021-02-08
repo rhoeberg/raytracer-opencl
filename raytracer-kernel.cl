@@ -227,7 +227,6 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
         if (world->geometries[i].type == Geo_Sphere)
         {
             hitSuccess = SphereHit(world->spheres[world->geometries[i].id], ray, &nextHit);
-            
         }
         else if (world->geometries[i].type == Geo_Plane)
         {
@@ -246,18 +245,20 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
                 closestHit = nextHit;
             }
         }
-
-		if(x == 0 && y == 0) {
-			printf("here\n");
-		}
-
     }
     *hit = closestHit;
     return isHit;
 }
 
 
-bool PointLightIlluminates(__global const struct World *world, struct PointLight light, float3 point)
+//
+// FIXED BUG WITH WORLD PASSED AS KERNEL ARG
+// when trying to send the pointlight struct here from the world in shared mem it breaks with no error!
+//
+// fix is to just use pointlight id since we are passing world pointer anyways
+//
+/* bool PointLightIlluminates(__global const struct World *world, struct PointLight light, float3 point) */
+bool PointLightIlluminates(__global const struct World *world, int id, float3 point)
 {
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
@@ -265,10 +266,11 @@ bool PointLightIlluminates(__global const struct World *world, struct PointLight
 		printf("PointLightIlluminates sphere amount: %d\n", world->sphereCount);
 	}
 
-    float3 pointFrom = light.pos - point;
+
+    float3 pointFrom = world->pointLights[id].pos - point;
     float3 epsilonV = (float3)( EPSILON, EPSILON, EPSILON );
     float3 adjustedPoint = point + (pointFrom * epsilonV);
-    float tl = length(light.pos - point) / length(pointFrom);
+    float tl = length(world->pointLights[id].pos - point) / length(pointFrom);
     struct Ray ray = RAY(adjustedPoint, pointFrom);
     struct Hit hit;
     if(WorldHitGeometry(world, ray, &hit)) {
@@ -277,10 +279,6 @@ bool PointLightIlluminates(__global const struct World *world, struct PointLight
         }
     }
 	
-	if(x == 0 && y == 0) {
-		printf("test\n");
-	}
-        
     return true;
 }
 
@@ -299,26 +297,24 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
     struct Hit hit;
     if (WorldHitGeometry(world, ray, &hit))
     {
-
-		if(x == 0 && y == 0) {
-			printf("here\n");
-		}
-
         float3 p = ray.o + (ray.d * hit.t);
         float3 result = hit.mat.diffuse * world->ambient;
         
         result += LightGetColor(normalize(world->dirLight.dir * -1), world->dirLight.color, hit);
-        
-        
+
         int i;
         for(i = 0; i < world->pointLightCount; i++)
         {
-            if (PointLightIlluminates(world, world->pointLights[i], p))
+            /* if (PointLightIlluminates(world, world->pointLights[i], p)) */
+            if (PointLightIlluminates(world, i, p))
             {
+				// we never reach this point
                 float3 pointFrom = normalize(world->pointLights[i].pos - p);
                 result += LightGetColor(pointFrom, world->pointLights[i].color, hit);
             }
+			// we never reach this point
         }
+
         
         if (hit.mat.mirror)
         {
@@ -333,6 +329,7 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
                 result += hit.mat.reflection * WorldHit(world, reflectionRay, n);
             }
         }
+
         
         return result;
     }
