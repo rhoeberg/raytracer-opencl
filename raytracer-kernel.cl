@@ -57,6 +57,23 @@ struct __attribute__ ((packed)) Geometry
     enum GeometryType type;
 };
 
+struct __attribute__ ((packed)) Camera
+{
+	// TODO (rhoe) maybe names these better?
+    float3 o; // cam pos
+    float3 g; // cam front (gaze direction)
+    float3 w; // cam back (negative gaze)
+    float3 u; // cam right 
+    float3 v; // cam up 
+    float3 t; // world up 
+    
+
+	float yaw;
+	float pitch;
+
+    float angle;
+};
+
 struct __attribute__ ((packed)) World
 {
     float3 bgCol;
@@ -79,6 +96,8 @@ struct __attribute__ ((packed)) World
     
     struct PointLight pointLights[MAX_POINTLIGHTS];
     int pointLightCount;
+
+	struct Camera cam;
 };
 
 struct __attribute__ ((packed)) Vec3
@@ -101,14 +120,49 @@ inline float Square(float a)
     return a * a;
 }
 
+void worldDebug(__global const struct World *world)
+{
+	printf("pointlight count: %d\n", world->pointLightCount);
+	printf("sphere count: %d\n", world->sphereCount);
+	printf("plane count: %d\n", world->planeCount);
+	{
+		struct Material mat = world->spheres[0].mat;
+		printf("sphere 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
+			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
+			   mat.specular.x, mat.specular.y, mat.specular.z,
+			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
+	}
+	{
+		struct Material mat = world->spheres[1].mat;
+		printf("sphere 1\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
+			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
+			   mat.specular.x, mat.specular.y, mat.specular.z,
+			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
+	}
+	{
+		struct Material mat = world->planes[0].mat;
+		printf("planes 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
+			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
+			   mat.specular.x, mat.specular.y, mat.specular.z,
+			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
+	}
+	{
+		struct PointLight point = world->pointLights[0];
+		printf("pointlight\n\tpos:%f %f %f\n\tcolor:%f %f %f\n",
+			   point.pos.x, point.pos.y, point.pos.z,
+			   point.color.x, point.color.y, point.color.z);
+	}
+	{
+		struct DirLight light = world->dirLight;
+		printf("dirlight\n\tdir:%f %f %f\n\tcolor:%f %f %f\n",
+			   light.dir.x, light.dir.y, light.dir.z,
+			   light.color.x, light.color.y, light.color.z);
+	}
+}	
+
+
 bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
 {
-    const unsigned int x = get_global_id(0);
-    const unsigned int y = get_global_id(1);
-	if(x == 0 && y == 0) {
-		printf("sphere hit\n");
-	}
-    
     float a = dot(ray.d, ray.d);
     float b = dot(ray.d, (ray.o - sphere.c) * 2.0f);
     float c = dot(ray.o - sphere.c, ray.o - sphere.c) - Square(sphere.r);
@@ -154,12 +208,6 @@ bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
 
 bool PlaneHit(struct Plane plane, struct Ray ray, struct Hit *hit)
 {
-    const unsigned int x = get_global_id(0);
-    const unsigned int y = get_global_id(1);
-	if(x == 0 && y == 0) {
-		printf("plane hit\n");
-	}
-
     float denom = dot(plane.n, ray.d);
     if(fabs(denom) > EPSILON) {
         float t = dot(plane.a - ray.o, plane.n) / denom;
@@ -190,6 +238,13 @@ inline float3 Reflect(float3 v, float3 n)
 
 float3 LightGetColor(float3 l, float3 lightColor, struct Hit hit)
 {
+	/* printf("lightcolor: %f %f %f\n", lightColor.x, lightColor.y, lightColor.z); */
+	/* struct Material mat = hit.mat; */
+	/* printf("hit mat\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
+	/* 	   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
+	/* 	   mat.specular.x, mat.specular.y, mat.specular.z, */
+	/* 	   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
+
     float3 p = hit.ray.o + (hit.ray.d * hit.t);
     float3 col = hit.mat.diffuse * lightColor;
     float nl = dot(hit.normal, l);
@@ -210,14 +265,6 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
     bool isHit = false;
     struct Hit nextHit;
     struct Hit closestHit;
-    
-    
-    const unsigned int x = get_global_id(0);
-    const unsigned int y = get_global_id(1);
-	if(x == 0 && y == 0) {
-		printf("WorldHitGeometry() sphere amount: %d\n", world->sphereCount);
-	}
-    
     
     int i;
     for (i = 0; i < world->geometryCount; i++)
@@ -251,22 +298,19 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // FIXED BUG WITH WORLD PASSED AS KERNEL ARG
 // when trying to send the pointlight struct here from the world in shared mem it breaks with no error!
 //
 // fix is to just use pointlight id since we are passing world pointer anyways
 //
-/* bool PointLightIlluminates(__global const struct World *world, struct PointLight light, float3 point) */
+// bool PointLightIlluminates(__global const struct World *world, struct PointLight light, float3 point)
+//
 bool PointLightIlluminates(__global const struct World *world, int id, float3 point)
 {
-    const unsigned int x = get_global_id(0);
-    const unsigned int y = get_global_id(1);
-	if(x == 0 && y == 0) {
-		printf("PointLightIlluminates sphere amount: %d\n", world->sphereCount);
-	}
-
-
+				
     float3 pointFrom = world->pointLights[id].pos - point;
     float3 epsilonV = (float3)( EPSILON, EPSILON, EPSILON );
     float3 adjustedPoint = point + (pointFrom * epsilonV);
@@ -286,12 +330,7 @@ bool PointLightIlluminates(__global const struct World *world, int id, float3 po
 
 float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
 {
-    const unsigned int x = get_global_id(0);
-    const unsigned int y = get_global_id(1);
-	if(x == 0 && y == 0) {
-		printf("WorldHit() sphere amount: %d\n", world->sphereCount);
-	}
-
+				
     n++;
     
     struct Hit hit;
@@ -305,20 +344,23 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
         int i;
         for(i = 0; i < world->pointLightCount; i++)
         {
-            /* if (PointLightIlluminates(world, world->pointLights[i], p)) */
             if (PointLightIlluminates(world, i, p))
             {
-				// we never reach this point
+				/* if(x == 1324 && y == 544) { */
+				/* /\* if(hit.mat.diffuse.y > 0.99f) { *\/ */
+				/* 	/\* printf("x:%d, y:%d\n", x, y); *\/ */
+				/* 	printf("hit mat diffuse r:%f, g:%f, b:%f\n", hit.mat.diffuse.x, hit.mat.diffuse.y, hit.mat.diffuse.z); */
+				/* } */
+
                 float3 pointFrom = normalize(world->pointLights[i].pos - p);
                 result += LightGetColor(pointFrom, world->pointLights[i].color, hit);
             }
-			// we never reach this point
         }
 
         
         if (hit.mat.mirror)
         {
-            if (n < 2)
+            if (n < 3)
             {
                 float3 reflectionDir = normalize(Reflect(hit.ray.o - p, hit.normal));
                 float3 epsilonV = (float3)(EPSILON, EPSILON, EPSILON);
@@ -337,114 +379,38 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
     return world->bgCol;
 }
 
-
-// OpenCL Kernel Function for element by element
-__kernel void WorldHitKernel(__global struct World *world2, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
+__kernel void WorldHitKernel(__global struct World *world, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
                              float time)
 {
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
+
+	/* if(x == 0 && y == 0) { */
+	/* 	worldDebug(world); */
+	/* } */
+
+    /* float3 o = (float3)(time * 0.03f, 0.0f, 0.0f); */
+    /* float3 g = (float3)(0.0f, 0.0f, -1.0f); */
+    /* float3 w = normalize(g * -1.0f); */
+    /* float3 u = cross((float3)(0.0f, 1.0f, 0.0f), w); */
+    /* float3 v = cross(w, u); */
+    /* float3 t = (float3)(0.0f, 1.0f, 0.0f); */
+    /* float angle = 0.785f; */
     
-    float3 o = (float3)(time * 0.03f, 0.0f, 0.0f);
-    float3 g = (float3)(0.0f, 0.0f, -1.0f);
-    float3 w = normalize(g * -1.0f);
-    float3 u = cross((float3)(0.0f, 1.0f, 0.0f), w);
-    float3 v = cross(w, u);
-    
-    float3 t = (float3)(0.0f, 1.0f, 0.0f);
-    float angle = 0.785f;
-    
-    float3 rw = (w * -1.0f) * ((float)height / 2.0f) / tan(angle / 2.0f);
-    float3 ru = u * (x - ((float)width - 1.0f) / 2.0f);
-    float3 rv = v * (y - ((float)height - 1.0f) / 2.0f);
+    float3 rw = (world->cam.w * -1.0f) * ((float)height / 2.0f) / tan(world->cam.angle / 2.0f);
+    float3 ru = world->cam.u * (x - ((float)width - 1.0f) / 2.0f);
+    float3 rv = world->cam.v * (y - ((float)height - 1.0f) / 2.0f);
     float3 r = rw + ru + rv;
     float3 d = normalize(r);
     struct Ray ray;
-    ray.o = o;
+    ray.o = world->cam.o;
     ray.d = d;
-    
-    /* struct World world; */
-    /* world.bgCol = (float3)(1.0f, 1.0f, 0.0f); */
-    /* world.ambient = (float3)(0.0f, 0.0f, 0.0f); */
-    /* //world.sphereCount = 2; */
-    /* world.geometryCount = 0; */
-    /* world.sphereCount = 0; */
-    /* world.planeCount = 0; */
-    /* { */
-    /*     world.spheres[0].mat.diffuse = (float3)(0.8f,0.8f,0.0f); */
-    /*     world.spheres[0].mat.specular = (float3)(0.5f, 0.5f, 0.5f); */
-    /*     world.spheres[0].mat.shine = 100.0f; */
-    /*     world.spheres[0].c = (float3)(-0.8f, sin(time * 0.9f) * 0.2f, -3.0f); */
-    /*     world.spheres[0].r = 0.5f; */
-    /*     world.spheres[0].mat.mirror = true; */
-    /*     world.spheres[0].mat.reflection = (float3)(0.5f, 0.5f, 0.5f); */
-    /*     world.geometries[world.geometryCount].id = world.sphereCount; */
-    /*     world.geometries[world.geometryCount].type = Geo_Sphere; */
-    /*     world.geometryCount += 1; */
-    /*     world.sphereCount += 1; */
-    /* } */
-    
-    /* { */
-    /*     world.spheres[1].mat.diffuse = (float3)(0.0f,0.8f,0.8f); */
-    /*     world.spheres[1].mat.specular = (float3)(0.5f, 0.5f, 0.5f); */
-    /*     world.spheres[1].mat.shine = 100.0f; */
-    /*     float3 center = (float3)(0.8f, 0.0f, -3.0f); */
-    /*     world.spheres[1].c = center; */
-    /*     world.spheres[1].r = 0.5f; */
-    /*     world.spheres[1].mat.mirror = true; */
-    /*     world.spheres[1].mat.reflection = (float3)(0.5f, 0.5f, 0.5f); */
-    /*     world.geometries[world.geometryCount].id = world.sphereCount; */
-    /*     world.geometries[world.geometryCount].type = Geo_Sphere; */
-    /*     world.geometryCount += 1; */
-    /*     world.sphereCount += 1; */
-    /* } */
-    
-    /* { */
-    /*     world.planes[0].a = (float3)(0, 0.5f, 0); */
-    /*     world.planes[0].n = (float3)(0, -1, 0); */
-    /*     world.planes[0].mat.diffuse = (float3)(0, 1, 0); */
-    /*     world.planes[0].mat.specular = (float3)(0.2f, 0.2f, 0.2f); */
-    /*     world.geometries[world.geometryCount].id = world.planeCount; */
-    /*     world.geometries[world.geometryCount].type = Geo_Plane; */
-    /*     world.geometryCount += 1; */
-    /*     world.planeCount += 1; */
-    /* } */
-    
-    /* world.dirLight.dir = (float3)(-0.5f, sin(time * 0.5f), -0.5f); */
-    /* world.dirLight.color = (float3)(0.4f, 0.4f, 0.4f); */
-    
-    /* world.pointLightCount = 0; */
-    /* world.pointLights[world.pointLightCount].pos = (float3)(-2.0f, -2.0f, 4.0f); */
-    /* world.pointLights[world.pointLightCount].color = (float3)(1.0f, 0.0f, 0.0f); */
-    /* world.pointLightCount += 1; */
-    
-    /* float3 col = (float3)WorldHit(&world, ray, 0); */
 
-    float3 col = (float3)WorldHit(world2, ray, 0);
-	/* float3 col = (float3)(0,1,0); */
+    float3 col = (float3)WorldHit(world, ray, 0);
 
-    /* if(x == 0 && y == 0) { */
-    /*     printf("bgcol: %f %f %f\n", world2->bgCol.x, world2->bgCol.y, world2->bgCol.z); */
-    /*     printf("ambient: %f %f %f\n", world2->ambient.x, world2->ambient.y, world2->ambient.z); */
-	/* 	printf("size of planes: %d\n", sizeof(world2->planes)); */
-    /*     printf("world planeCount: %d\n", world2->planeCount); */
-    /*     printf("world sphereCount: %d\n", world2->sphereCount); */
-    /*     printf("world pointlightCount: %d\n", world2->pointLightCount); */
-    /*     printf("world sphere1 pos: %f %f %f\n", world2->spheres[0].c.x, world2->spheres[0].c.y, world2->spheres[0].c.z); */
-
-	/* 	printf("sizeof float3: %d\n", sizeof(float3)); */
-	/* 	struct Vec3 v; */
-	/* 	printf("sizeof vec3: %d\n", sizeof(v)); */
-	/* 	struct Plane p; */
-	/* 	printf("sizeof plane: %d\n", sizeof(p)); */
-	/* 	struct Material m; */
-	/* 	printf("sizeof mat: %d\n", sizeof(m)); */
-	/* 	printf("sizeof bool: %d\n", sizeof(bool)); */
-	/* 	printf("sizeof float: %d\n", sizeof(float)); */
-    /* } */
-
-    
-		// WRITE IMAGE
+	//
+	// WRITE IMAGE
+	//
     int2 coord = (int2)(x, y);
     write_imagef(texture, coord, (float4)(col, 1.0f));
 }

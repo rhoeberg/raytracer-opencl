@@ -34,6 +34,8 @@ struct World
     
     PointLight pointLights[MAX_POINTLIGHTS];
     int pointLightCount;
+
+	Camera cam;
 };
 #pragma pack(pop)
 

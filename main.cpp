@@ -39,7 +39,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 }
 
 static void error_callback(int error, const char *description)
-{
+ {
     fprintf(stderr, "Error: %s\n", description);
 }
 
@@ -147,6 +147,8 @@ void init_glfw(GLFWwindow **win)
     
     // enable depths testing to remove pixels which is behind other pixels
     glEnable(GL_DEPTH_TEST);
+
+	glfwSetInputMode(*win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 GLuint create_quad()
@@ -395,8 +397,6 @@ int main(int argc, char *argv[])
     GLuint texture = create_texture();
     GLuint shaderProgram = create_shader("vertexshader.vs", "fragmentshader.frag");
     
-    Camera cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
-
 	////////////////
 	// INITIALIZE IMGUI
     const char* glsl_version = "#version 150";
@@ -406,9 +406,12 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_InitForOpenGL(win, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     
+
+    // Camera cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
 	////////////////
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
+	world.cam = CAMERA({0, 0, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
 	printf("HOST size of planes: %d\n", sizeof(world.planes));
 	printf("HOST size of vec3: %d\n", sizeof(Vec3));
 	printf("HOST size of plane: %d\n", sizeof(Plane));
@@ -428,7 +431,8 @@ int main(int argc, char *argv[])
         double frameStart = glfwGetTime();
         glfwPollEvents();
 
-		ProcessMouseMovement(&cam, &input);
+		ProcessMouseMovement(&world.cam, &input);
+		ProcessKeyboard(&world.cam, &input);
         
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -438,6 +442,8 @@ int main(int argc, char *argv[])
         ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
         
+		CHECK_ERR(clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), &world, 0, NULL, NULL));
+		// CHECK_ERR(clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld));
         float t = glfwGetTime();
         clSetKernelArg(cl.kernel, 5, sizeof(float), &t);
         

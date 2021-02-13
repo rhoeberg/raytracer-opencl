@@ -116,8 +116,9 @@ World InitializeDefaultWorld()
     world.sphereCount = 0;
     world.planeCount = 0;
     {
-        world.spheres[0].mat.diffuse = {0.8f,0.8f,0.0f};
+        world.spheres[0].mat.diffuse = {0.0f, 1.0f, 0.0f};
         world.spheres[0].mat.specular = {0.5f, 0.5f, 0.5f};
+        // world.spheres[0].mat.specular = {0.0f, 0.0f, 0.0f};
         world.spheres[0].mat.shine = 100.0f;
         world.spheres[0].c = {-0.8f, 0.2f, -3.0f};
         world.spheres[0].r = 0.5f;
@@ -130,8 +131,9 @@ World InitializeDefaultWorld()
     }
     
     {
-        world.spheres[1].mat.diffuse = {0.0f,0.8f,0.8f};
+        world.spheres[1].mat.diffuse = {1.0f, 0.0f, 0.0f};
         world.spheres[1].mat.specular = {0.5f, 0.5f, 0.5f};
+        // world.spheres[1].mat.specular = {0.0f, 0.0f, 0.0f};
         world.spheres[1].mat.shine = 100.0f;
         cl_float3 center = {0.8f, 0.0f, -3.0f};
         world.spheres[1].c = center;
@@ -145,22 +147,25 @@ World InitializeDefaultWorld()
     }
     
     {
-        world.planes[0].a = {0, 0.5f, 0};
-        world.planes[0].n = {0, -1, 0};
+        world.planes[0].a = {0, -1.0f, 0};
+        world.planes[0].n = {0, 1, 0};
         world.planes[0].mat.diffuse = {0, 1, 0};
         world.planes[0].mat.specular = {0.2f, 0.2f, 0.2f};
+		world.planes[0].mat.shine = 0.0f;
+		world.planes[0].mat.reflection = {0.1f, 0.1f, 0.1f};
+        world.planes[0].mat.mirror = false;
         world.geometries[world.geometryCount].id = world.planeCount;
         world.geometries[world.geometryCount].type = Geo_Plane;
         world.geometryCount += 1;
         world.planeCount += 1;
     }
     
-    world.dirLight.dir = {-0.5f, -0.5f, -0.5f};
+    world.dirLight.dir = {-0.5f, 0.5f, -0.5f};
     world.dirLight.color = {0.4f, 0.4f, 0.4f};
     
     world.pointLightCount = 0;
-    world.pointLights[world.pointLightCount].pos = {-2.0f, -2.0f, 4.0f};
-    world.pointLights[world.pointLightCount].color = {1.0f, 0.0f, 0.0f};
+    world.pointLights[world.pointLightCount].pos = {-2.0f, 1.0f, 4.0f};
+    world.pointLights[world.pointLightCount].color = {0.3f, 0.3f, 1.0f}; // BLUE
     world.pointLightCount += 1;
 	
 	return world;

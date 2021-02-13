@@ -1,4 +1,7 @@
 #pragma once
+#include <CL/cl.h>
+#include <CL/cl_gl.h>
+#include <CL/cl_gl.h>
 
 #define MAX(a, b) (((a) >= (b)) ? (a) : (b))
 #define MIN(a, b) (((a) <= (b)) ? (a) : (b))
@@ -45,3 +48,18 @@ inline Vec3 Norm(Vec3 a);
 inline float Dot(Vec3 a, Vec3 b);
 inline Vec3 Cross(Vec3 a, Vec3 b);
 inline Vec3 Reflect(Vec3 v, Vec3 n);
+
+// OPENCL FUNCTIONS
+inline cl_float3 operator+(cl_float3 a, cl_float3 b);
+inline cl_float3 &operator+=(cl_float3 &a, cl_float3 b);
+inline cl_float3 operator-(cl_float3 a, cl_float3 b);
+inline cl_float3 &operator-=(cl_float3 &a, cl_float3 b);
+inline cl_float3 operator*(cl_float3 a, float s);
+inline cl_float3 &operator*=(cl_float3 &a, float s);
+inline cl_float3 operator/(cl_float3 a, float s);
+inline cl_float3 &operator/=(cl_float3 &a, float s);
+
+inline cl_float3 Norm(cl_float3 a);
+inline float Length(cl_float3 a);
+inline float Dot(cl_float3 a, cl_float3 b);
+inline cl_float3 Cross(cl_float3 a, cl_float3 b);
