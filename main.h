@@ -20,7 +20,6 @@
 
 //////////////////////////////
 // INCLUDES
-
 #include "GL/glew.h"
 #define GLFW_DLL
 #define GLFW_EXPOSE_NATIVE_WGL
@@ -34,17 +33,14 @@
 #define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
 #endif
 
-#include "imgui/imgui.cpp"
-#include "imgui/imgui_widgets.cpp"
-#include "imgui/imgui_draw.cpp"
-#include "imgui/imgui_demo.cpp"
-#include "imgui/imgui_impl_opengl3.cpp"
-#include "imgui/imgui_impl_glfw.cpp"
-
 #include <iostream>
 #include <CL/cl.h>
 #include <CL/cl_gl.h>
 
+#include "opencl.h"
+#include "glfw.h"
+#include "util.h"
+#include "opengl.h"
 #include "math.h"
 #include "camera.h"
 #include "world.h"
@@ -52,29 +48,8 @@
 #include <CL/cl.h>
 #include <CL/cl_gl.h>
 
-
 ////////////////////////////
 // STRUCTS
-
-struct OpenCLData
-{
-	cl_device_id device_id;
-	cl_context context;
-	cl_command_queue commands;
-	cl_program program;
-	cl_kernel kernel;
-    
-	cl_mem inputWorld;
-	cl_mem inputRays;
-	//cl_mem inputRayD;
-	//cl_mem inputRayO;
-	cl_mem outputPixels;
-	cl_mem outputTexture;
-	cl_mem outputDebug;
-    
-	size_t local;
-};
-
 struct Input
 {
 	bool firstMouse = false;
@@ -84,13 +59,4 @@ struct Input
 	double mouseY;
 	bool keys[1024];
 	bool registeredKeys[1024];
-};
-
-struct ProgramState
-{
-	Camera cam;
-
-	bool moving = true;
-	bool movedLastFrame = true;
-	float moveStartTimer = 0.0f;
 };
