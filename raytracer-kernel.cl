@@ -238,13 +238,6 @@ inline float3 Reflect(float3 v, float3 n)
 
 float3 LightGetColor(float3 l, float3 lightColor, struct Hit hit)
 {
-	/* printf("lightcolor: %f %f %f\n", lightColor.x, lightColor.y, lightColor.z); */
-	/* struct Material mat = hit.mat; */
-	/* printf("hit mat\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
-	/* 	   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
-	/* 	   mat.specular.x, mat.specular.y, mat.specular.z, */
-	/* 	   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
-
     float3 p = hit.ray.o + (hit.ray.d * hit.t);
     float3 col = hit.mat.diffuse * lightColor;
     float nl = dot(hit.normal, l);
@@ -297,20 +290,8 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
     return isHit;
 }
 
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// FIXED BUG WITH WORLD PASSED AS KERNEL ARG
-// when trying to send the pointlight struct here from the world in shared mem it breaks with no error!
-//
-// fix is to just use pointlight id since we are passing world pointer anyways
-//
-// bool PointLightIlluminates(__global const struct World *world, struct PointLight light, float3 point)
-//
 bool PointLightIlluminates(__global const struct World *world, int id, float3 point)
 {
-				
     float3 pointFrom = world->pointLights[id].pos - point;
     float3 epsilonV = (float3)( EPSILON, EPSILON, EPSILON );
     float3 adjustedPoint = point + (pointFrom * epsilonV);
@@ -326,14 +307,11 @@ bool PointLightIlluminates(__global const struct World *world, int id, float3 po
     return true;
 }
 
-
-
 float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
 {
-				
     n++;
-    
     struct Hit hit;
+
     if (WorldHitGeometry(world, ray, &hit))
     {
         float3 p = ray.o + (ray.d * hit.t);
@@ -346,12 +324,6 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
         {
             if (PointLightIlluminates(world, i, p))
             {
-				/* if(x == 1324 && y == 544) { */
-				/* /\* if(hit.mat.diffuse.y > 0.99f) { *\/ */
-				/* 	/\* printf("x:%d, y:%d\n", x, y); *\/ */
-				/* 	printf("hit mat diffuse r:%f, g:%f, b:%f\n", hit.mat.diffuse.x, hit.mat.diffuse.y, hit.mat.diffuse.z); */
-				/* } */
-
                 float3 pointFrom = normalize(world->pointLights[i].pos - p);
                 result += LightGetColor(pointFrom, world->pointLights[i].color, hit);
             }
@@ -384,18 +356,6 @@ __kernel void WorldHitKernel(__global struct World *world, int width, int height
 {
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
-
-	/* if(x == 0 && y == 0) { */
-	/* 	worldDebug(world); */
-	/* } */
-
-    /* float3 o = (float3)(time * 0.03f, 0.0f, 0.0f); */
-    /* float3 g = (float3)(0.0f, 0.0f, -1.0f); */
-    /* float3 w = normalize(g * -1.0f); */
-    /* float3 u = cross((float3)(0.0f, 1.0f, 0.0f), w); */
-    /* float3 v = cross(w, u); */
-    /* float3 t = (float3)(0.0f, 1.0f, 0.0f); */
-    /* float angle = 0.785f; */
     
     float3 rw = (world->cam.w * -1.0f) * ((float)height / 2.0f) / tan(world->cam.angle / 2.0f);
     float3 ru = world->cam.u * (x - ((float)width - 1.0f) / 2.0f);
