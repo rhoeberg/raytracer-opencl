@@ -111,14 +111,14 @@ World InitializeDefaultWorld()
     World world;
     world.bgCol = {0.08f, 0.11f, 0.42f};
     world.ambient = {0.0f, 0.0f, 0.0f};
-    //world.sphereCount = 2;
     world.geometryCount = 0;
     world.sphereCount = 0;
     world.planeCount = 0;
+    world.aabbCount = 0;
+
     {
         world.spheres[0].mat.diffuse = {0.81f, 0.73f, 0.23f};
         world.spheres[0].mat.specular = {0.5f, 0.5f, 0.5f};
-        // world.spheres[0].mat.specular = {0.0f, 0.0f, 0.0f};
         world.spheres[0].mat.shine = 100.0f;
         world.spheres[0].c = {-0.8f, 0.2f, -3.0f};
         world.spheres[0].r = 0.5f;
@@ -133,7 +133,6 @@ World InitializeDefaultWorld()
     {
         world.spheres[1].mat.diffuse = {0.8f, 0.78f, 0.8f};
         world.spheres[1].mat.specular = {0.5f, 0.5f, 0.5f};
-        // world.spheres[1].mat.specular = {0.0f, 0.0f, 0.0f};
         world.spheres[1].mat.shine = 100.0f;
         cl_float3 center = {0.8f, 0.0f, -3.0f};
         world.spheres[1].c = center;
@@ -159,6 +158,20 @@ World InitializeDefaultWorld()
         world.geometryCount += 1;
         world.planeCount += 1;
     }
+
+    // {
+    //     world.AABBs[0].lbf = {-0.5f, 0, -0.5f};
+    //     world.AABBs[0].run = {0.5f, 1, 0.5f};
+    //     world.AABBs[0].mat.diffuse = {0, 1, 0};
+    //     world.AABBs[0].mat.specular = {0.2f, 0.2f, 0.2f};
+	// 	world.AABBs[0].mat.shine = 0.0f;
+	// 	world.AABBs[0].mat.reflection = {0.4f, 0.4f, 0.4f};
+    //     world.AABBs[0].mat.mirror = true;
+    //     world.geometries[world.geometryCount].id = world.planeCount;
+    //     world.geometries[world.geometryCount].type = Geo_AABB;
+    //     world.geometryCount += 1;
+    //     world.aabbCount += 1;
+    // }
     
     world.dirLight.dir = {-0.5f, -0.5f, -0.5f};
     world.dirLight.color = {0.1f, 0.1f, 0.1f};

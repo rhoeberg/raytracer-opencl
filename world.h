@@ -6,9 +6,10 @@
 #include "geometry.h"
 #include "light.h"
 
-#define MAX_PLANES 16
-#define MAX_SPHERES 16
-#define MAX_GEOMETRIES (MAX_PLANES * MAX_SPHERES)
+#define MAX_PLANES 2
+#define MAX_SPHERES 2
+#define MAX_AABB 2
+#define MAX_GEOMETRIES (MAX_PLANES + MAX_SPHERES + MAX_AABB)
 #define MAX_POINTLIGHTS 16
 
 #pragma pack(push, 1)
@@ -19,6 +20,7 @@ struct World
     
     Plane planes[MAX_PLANES];
     Sphere spheres[MAX_SPHERES];
+    AABB AABBs[MAX_AABB];
     
     int maxPlanes;
     int maxSpheres;
@@ -26,6 +28,7 @@ struct World
     
     int planeCount;
     int sphereCount;
+    int aabbCount;
     
     Geometry geometries[MAX_GEOMETRIES];
     int geometryCount;

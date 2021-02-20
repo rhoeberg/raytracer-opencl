@@ -127,11 +127,10 @@ void cl_load_kernel(cl_context* context, cl_device_id* device, const char* sourc
     CHECK_ERR(err);
     
 	// create buffers
-    *inputWorld = clCreateBuffer(*context, CL_MEM_READ_ONLY, sizeof(World), NULL, &err);
-    // *inputWorld = clCreateBuffer(*context, CL_MEM_USE_HOST_PTR, sizeof(World), world, &err);
+    // *inputWorld = clCreateBuffer(*context, CL_MEM_READ_ONLY, sizeof(World), NULL, &err);
+    *inputWorld = clCreateBuffer(*context, CL_MEM_USE_HOST_PTR, sizeof(World), world, &err);
     CHECK_ERR(err);
-    *outputDebug = clCreateBuffer(*context, CL_MEM_WRITE_ONLY, sizeof(Ray), NULL, &err);
-    CHECK_ERR(err);
+
     CHECK_ERR(clEnqueueWriteBuffer(*command_queue, *inputWorld, CL_TRUE, 0, sizeof(World), world, 0, NULL, NULL));
     
     /* Create Kernel Program from the source */
@@ -176,7 +175,6 @@ void initialize_opencl(OpenCLData *cl, World *world, GLuint texture)
     CHECK_ERR(clSetKernelArg(cl->kernel, 1, sizeof(int), &width));
     CHECK_ERR(clSetKernelArg(cl->kernel, 2, sizeof(int), &height));
     CHECK_ERR(clSetKernelArg(cl->kernel, 3, sizeof(cl_mem), &cl->outputTexture));
-    CHECK_ERR(clSetKernelArg(cl->kernel, 4, sizeof(cl_mem), (void*)&cl->outputDebug));
 }
 
 void cleanup_cl(OpenCLData *cl)

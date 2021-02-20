@@ -1,7 +1,8 @@
 #define EPSILON 0.0001
-#define MAX_PLANES 16
-#define MAX_SPHERES 16
-#define MAX_GEOMETRIES (MAX_PLANES * MAX_SPHERES)
+#define MAX_PLANES 2
+#define MAX_SPHERES 2
+#define MAX_AABB 2
+#define MAX_GEOMETRIES (MAX_PLANES + MAX_SPHERES + MAX_AABB)
 #define MAX_POINTLIGHTS 16
 
 struct __attribute__ ((packed)) DirLight
@@ -46,9 +47,17 @@ struct __attribute__ ((packed)) Sphere
     struct Material mat;
 };
 
+struct __attribute__ ((packed)) AABB
+{
+	float3 lbf; // left bottom far
+	float3 run; // right upper near
+	struct Material mat;
+};
+
 enum GeometryType{
     Geo_Sphere,
-    Geo_Plane
+    Geo_Plane,
+    Geo_AABB,
 };
 
 struct __attribute__ ((packed)) Geometry
@@ -81,6 +90,7 @@ struct __attribute__ ((packed)) World
     
     struct Plane planes[MAX_PLANES];
     struct Sphere spheres[MAX_SPHERES];
+    struct AABB AABBs[MAX_AABB];
     
     int maxPlanes;
     int maxSpheres;
@@ -88,6 +98,7 @@ struct __attribute__ ((packed)) World
     
     int planeCount;
     int sphereCount;
+    int aabbCount;
     
     struct Geometry geometries[MAX_GEOMETRIES];
     int geometryCount;
@@ -166,13 +177,8 @@ bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
     float a = dot(ray.d, ray.d);
     float b = dot(ray.d, (ray.o - sphere.c) * 2.0f);
     float c = dot(ray.o - sphere.c, ray.o - sphere.c) - Square(sphere.r);
-    
     float t = 0.0f;
-    
-    
-    
     float d = Square(b) - 4.0f * a * c;
-    
     
     if(d < 0.0f) {
         return false;
@@ -185,18 +191,12 @@ bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
         float tNeg = (-b - sqrt(d)) / (2.0f * a);
         float tPos = (-b + sqrt(d)) / (2.0f * a);
         t = min(tNeg, tPos);
-        
-        
-        
     }
-    
     if(t < 0.0f) {
         return false;
     }
     
     float3 normal = normalize((ray.o + (ray.d * t)) - sphere.c);
-    
-    
     
     hit->t = t;
     hit->ray = ray;
@@ -220,6 +220,115 @@ bool PlaneHit(struct Plane plane, struct Ray ray, struct Hit *hit)
         }
     }
     return false;
+}
+
+bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
+{
+	struct Hit finalHit;
+
+	/* struct Plane planes[1024]; */
+	/* struct Hit hit; */
+	/* bool hitSuccess = PlaneHit(planes[0], ray, &hit); */
+
+	struct Plane planes[6];
+	int planeHitCount = 0;
+	bool hitPlane = false;
+
+	///////////////////////
+	// PROBLEM IS MAYBE HERE????
+	//
+
+
+	// nearPlane
+	/* if(dot(normalize(ray.o - aabb.run), (float3)(0, 0, 1)) > 0) { */
+	/* 	struct Plane nearPlane; */
+	/* 	nearPlane.a = aabb.run; */
+	/* 	nearPlane.n = (float3)(0, 0, 1); */
+	/* 	struct Hit hit; */
+	/* 	if(PlaneHit(nearPlane, ray, &hit)) { */
+	/* 		hitPlane = true; */
+	/* 		planes[planeHitCount] = nearPlane; */
+	/* 		planeHitCount++; */
+	/* 		/\* planes[planeHitCount].a = (float3)(0,0,0); *\/ */
+	/* 	} */
+	/* } */
+
+	/* // bottomPlane */
+	/* if(dot(normalize(ray.o - aabb.lbf), (float3)(0, -1, 0)) > 0) { */
+	/* 	struct Plane bottomPlane; */
+	/* 	bottomPlane.a = aabb.run; */
+	/* 	bottomPlane.n = (float3)(0, -1, 0); */
+	/* 	struct Hit hit; */
+	/* 	if(PlaneHit(bottomPlane, ray, &hit)) { */
+	/* 		hitPlane = true; */
+	/* 		planes[planeHitCount].a = (float3)(1,2,3); */
+	/* 		/\* planes[planeHitCount].n = bottomPlane.n; *\/ */
+	/* 		/\* planeHitCount++; *\/ */
+	/* 	} */
+	/* } */
+
+	/* // topPlane */
+	/* if(dot(normalize(ray.o - aabb.run), (float3)(0, 1, 0)) > 0) { */
+	/* 	struct Plane topPlane; */
+	/* 	topPlane.a = aabb.run; */
+	/* 	topPlane.n = (float3)(0, 1, 0); */
+	/* 	struct Hit hit; */
+	/* 	if(PlaneHit(topPlane, ray, &hit)) { */
+	/* 		hitPlane = true; */
+	/* 		planes[planeHitCount] = topPlane; */
+	/* 		planeHitCount++; */
+	/* 	} */
+	/* } */
+
+	/* // leftPlane */
+	/* if(dot(normalize(ray.o - aabb.lbf), (float3)(-1, 0, 0)) > 0) { */
+	/* 	struct Plane leftPlane; */
+	/* 	leftPlane.a = aabb.run; */
+	/* 	leftPlane.n = (float3)(-1, 0, 0); */
+	/* 	struct Hit hit; */
+	/* 	if(PlaneHit(leftPlane, ray, &hit)) { */
+	/* 		hitPlane = true; */
+	/* 		planes[planeHitCount] = leftPlane; */
+	/* 		planeHitCount++; */
+	/* 	} */
+	/* } */
+
+	/* // rightPlane */
+	/* if(dot(normalize(ray.o - aabb.run), (float3)(1, 0, 0)) > 0) { */
+	/* 	struct Plane rightPlane; */
+	/* 	rightPlane.a = aabb.run; */
+	/* 	rightPlane.n = (float3)(1, 0, 0); */
+	/* 	struct Hit hit; */
+	/* 	if(PlaneHit(rightPlane, ray, &hit)) { */
+	/* 		hitPlane = true; */
+	/* 		planes[planeHitCount] = rightPlane; */
+	/* 		planeHitCount++; */
+	/* 	} */
+	/* } */
+
+	for(int i = 0; i < planeHitCount; i++) {
+		if(i == 0) {
+			PlaneHit(planes[i], ray, &finalHit);
+		}
+		else {
+			struct Hit newHit;
+			if(PlaneHit(planes[i], ray, &finalHit) && newHit.t > finalHit.t) {
+				finalHit = newHit;
+			}
+		}
+	}
+
+	if(hitPlane) {
+		float3 p = ray.o + ray.d * finalHit.t;
+		if(p.x + EPSILON >= aabb.lbf.x && p.x - EPSILON <= aabb.run.x &&
+		   p.y + EPSILON >= aabb.lbf.y && p.y - EPSILON <= aabb.run.y &&
+		   p.z + EPSILON >= aabb.lbf.z && p.y - EPSILON <= aabb.run.z) {
+			*hit = finalHit;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 inline struct Ray RAY(float3 o, float3 d)
@@ -262,7 +371,6 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
     int i;
     for (i = 0; i < world->geometryCount; i++)
     {
-
         bool hitSuccess = false;
         if (world->geometries[i].type == Geo_Sphere)
         {
@@ -271,6 +379,10 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
         else if (world->geometries[i].type == Geo_Plane)
         {
             hitSuccess = PlaneHit(world->planes[world->geometries[i].id], ray, &nextHit);
+        }
+        else if (world->geometries[i].type == Geo_AABB)
+        {
+            hitSuccess = AABBHit(world->AABBs[world->geometries[i].id], ray, &nextHit);
         }
         
         if (hitSuccess)
@@ -311,7 +423,7 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
 {
     n++;
     struct Hit hit;
-
+	
     if (WorldHitGeometry(world, ray, &hit))
     {
         float3 p = ray.o + (ray.d * hit.t);
@@ -351,9 +463,9 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
     return world->bgCol;
 }
 
-__kernel void WorldHitKernel(__global struct World *world, int width, int height, __write_only image2d_t texture, __global struct Ray *outputDebug,
-                             float time)
+__kernel void WorldHitKernel(__global struct World *world, int width, int height, __write_only image2d_t texture)
 {
+
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
     
@@ -366,8 +478,19 @@ __kernel void WorldHitKernel(__global struct World *world, int width, int height
     ray.o = world->cam.o;
     ray.d = d;
 
-    float3 col = (float3)WorldHit(world, ray, 0);
+	//////////////////
+	// Here we have no problem putting a lot of planes on the stack
+	//
+	/* struct Plane planes[1024]; */
+	/* struct Hit hit; */
+	/* bool hitSuccess = PlaneHit(planes[0], ray, &hit); */
+	/* for(int i = 0; i < 12; i++) { */
+	/* 	planes[i].a = (float3)(0,i,0); */
+	/* } */
+	/* planes[400].a = (float3)(0,0,0); */
+    /* /\* float3 col = planes[700].a; *\/ */
 
+    float3 col = (float3)WorldHit(world, ray, 0);
 	//
 	// WRITE IMAGE
 	//

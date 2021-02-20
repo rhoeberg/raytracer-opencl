@@ -31,8 +31,8 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     }
 }
 
-static void error_callback(int error, const char *description)
- {
+void error_callback(int error, const char *description)
+{
     fprintf(stderr, "Error: %s\n", description);
 }
 
@@ -50,7 +50,7 @@ void init_glfw(GLFWwindow **win)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     
-    *win = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "opencl raytracer by rhoeberg", NULL, NULL);
+    *win = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "opencl raytracer - rhoeberg", NULL, NULL);
     if (!win)
     {
         glfwTerminate();

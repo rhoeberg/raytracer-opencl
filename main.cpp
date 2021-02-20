@@ -28,6 +28,10 @@ int main(int argc, char *argv[])
     init_glfw(&win);
 
 	Input input;
+	for(int i = 0; i < 1024; i++) {
+		input.keys[i] = false;
+		input.registeredKeys[i] = false;
+	}
 	glfwSetWindowUserPointer(win, &input);
 
     GLuint quad = create_quad();
@@ -43,18 +47,10 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_InitForOpenGL(win, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     
-
-    // Camera cam = CAMERA(VEC3(0, 0, 0), VEC3(0, 0, -1), VEC3(0, 1, 0), 0.785);
 	////////////////
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
-	world.cam = CAMERA({0, 0, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
-	printf("HOST size of planes: %d\n", sizeof(world.planes));
-	printf("HOST size of vec3: %d\n", sizeof(Vec3));
-	printf("HOST size of plane: %d\n", sizeof(Plane));
-	printf("HOST size of mat: %d\n", sizeof(Material));
-	printf("HOST size of bool: %d\n", sizeof(bool));
-	printf("HOST size of float: %d\n", sizeof(float));
+	world.cam = CAMERA({0, 0, 0}, {0, 0, 1}, {0, 1, 0}, 0.785);
     
 	// ////////////////
 	// // INITIALIZE OPENCL
@@ -79,13 +75,12 @@ int main(int argc, char *argv[])
         ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
         
-		CHECK_ERR(clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), &world, 0, NULL, NULL));
-		// CHECK_ERR(clSetKernelArg(cl.kernel, 0, sizeof(cl_mem), (void*)&cl.inputWorld));
-        float t = glfwGetTime();
-        clSetKernelArg(cl.kernel, 5, sizeof(float), &t);
-        
+
         glFinish();
         clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
+
+		CHECK_ERR(clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), &world, 0, NULL, NULL));
+
         
         // Execute the kernel over the entire range of our 1d input data set
         // using the maximum number of work group items for this device

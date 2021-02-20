@@ -20,9 +20,20 @@ struct Sphere
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct AABB
+{
+	cl_float3 lbf; // left bottom far
+	cl_float3 run; // right upper near
+	Material mat;
+};
+#pragma pack(pop)
+
+
 enum GeometryType{
     Geo_Sphere,
-    Geo_Plane
+    Geo_Plane,
+    Geo_AABB,
 };
 
 #pragma pack(push, 1)
