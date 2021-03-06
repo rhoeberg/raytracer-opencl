@@ -18,10 +18,10 @@ struct World
     cl_float3 bgCol;
     cl_float3 ambient;
     
-    Plane planes[MAX_PLANES];
     Sphere spheres[MAX_SPHERES];
+    Plane planes[MAX_PLANES];
     AABB AABBs[MAX_AABB];
-    
+
     int maxPlanes;
     int maxSpheres;
     int maxPointLights;

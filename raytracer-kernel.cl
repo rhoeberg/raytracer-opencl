@@ -88,8 +88,8 @@ struct __attribute__ ((packed)) World
     float3 bgCol;
     float3 ambient;
     
-    struct Plane planes[MAX_PLANES];
     struct Sphere spheres[MAX_SPHERES];
+    struct Plane planes[MAX_PLANES];
     struct AABB AABBs[MAX_AABB];
     
     int maxPlanes;
@@ -131,45 +131,45 @@ inline float Square(float a)
     return a * a;
 }
 
-void worldDebug(__global const struct World *world)
-{
-	printf("pointlight count: %d\n", world->pointLightCount);
-	printf("sphere count: %d\n", world->sphereCount);
-	printf("plane count: %d\n", world->planeCount);
-	{
-		struct Material mat = world->spheres[0].mat;
-		printf("sphere 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
-			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
-			   mat.specular.x, mat.specular.y, mat.specular.z,
-			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
-	}
-	{
-		struct Material mat = world->spheres[1].mat;
-		printf("sphere 1\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
-			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
-			   mat.specular.x, mat.specular.y, mat.specular.z,
-			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
-	}
-	{
-		struct Material mat = world->planes[0].mat;
-		printf("planes 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n",
-			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z,
-			   mat.specular.x, mat.specular.y, mat.specular.z,
-			   mat.reflection.x, mat.reflection.y, mat.reflection.z);
-	}
-	{
-		struct PointLight point = world->pointLights[0];
-		printf("pointlight\n\tpos:%f %f %f\n\tcolor:%f %f %f\n",
-			   point.pos.x, point.pos.y, point.pos.z,
-			   point.color.x, point.color.y, point.color.z);
-	}
-	{
-		struct DirLight light = world->dirLight;
-		printf("dirlight\n\tdir:%f %f %f\n\tcolor:%f %f %f\n",
-			   light.dir.x, light.dir.y, light.dir.z,
-			   light.color.x, light.color.y, light.color.z);
-	}
-}	
+/* void worldDebug(__global const struct World *world) */
+/* { */
+/* 	printf("pointlight count: %d\n", world->pointLightCount); */
+/* 	printf("sphere count: %d\n", world->sphereCount); */
+/* 	printf("plane count: %d\n", world->planeCount); */
+/* 	{ */
+/* 		struct Material mat = world->spheres[0].mat; */
+/* 		printf("sphere 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
+/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
+/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
+/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
+/* 	} */
+/* 	{ */
+/* 		struct Material mat = world->spheres[1].mat; */
+/* 		printf("sphere 1\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
+/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
+/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
+/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
+/* 	} */
+/* 	{ */
+/* 		struct Material mat = world->planes[0].mat; */
+/* 		printf("planes 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
+/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
+/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
+/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
+/* 	} */
+/* 	{ */
+/* 		struct PointLight point = world->pointLights[0]; */
+/* 		printf("pointlight\n\tpos:%f %f %f\n\tcolor:%f %f %f\n", */
+/* 			   point.pos.x, point.pos.y, point.pos.z, */
+/* 			   point.color.x, point.color.y, point.color.z); */
+/* 	} */
+/* 	{ */
+/* 		struct DirLight light = world->dirLight; */
+/* 		printf("dirlight\n\tdir:%f %f %f\n\tcolor:%f %f %f\n", */
+/* 			   light.dir.x, light.dir.y, light.dir.z, */
+/* 			   light.color.x, light.color.y, light.color.z); */
+/* 	} */
+
 
 
 bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
@@ -237,74 +237,95 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 	///////////////////////
 	// PROBLEM IS MAYBE HERE????
 	//
+	/* struct Plane nearPlane; */
+	/* nearPlane.a = aabb.run; */
+	/* nearPlane.n = (float3)(0, 0, 1); */
+	/* PlaneHit(nearPlane, ray, &hit); */
 
+	/* struct Plane bottomPlane; */
+	/* bottomPlane.a = aabb.run; */
+	/* bottomPlane.n = (float3)(0, -1, 0); */
+	/* PlaneHit(bottomPlane, ray, &hit); */
+	/* printf("yes its true\n"); */
+
+	// farPlane
+	if(dot(normalize(ray.o - aabb.lbf), (float3)(0, 0, -1)) > 0) {
+		struct Plane farPlane;
+		farPlane.a = aabb.lbf;
+		farPlane.n = (float3)(0, 0, -1);
+		struct Hit planeHit;
+		if(PlaneHit(farPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = farPlane;
+			planeHitCount++;
+		}
+	}
 
 	// nearPlane
-	/* if(dot(normalize(ray.o - aabb.run), (float3)(0, 0, 1)) > 0) { */
-	/* 	struct Plane nearPlane; */
-	/* 	nearPlane.a = aabb.run; */
-	/* 	nearPlane.n = (float3)(0, 0, 1); */
-	/* 	struct Hit hit; */
-	/* 	if(PlaneHit(nearPlane, ray, &hit)) { */
-	/* 		hitPlane = true; */
-	/* 		planes[planeHitCount] = nearPlane; */
-	/* 		planeHitCount++; */
-	/* 		/\* planes[planeHitCount].a = (float3)(0,0,0); *\/ */
-	/* 	} */
-	/* } */
+	if(dot(normalize(ray.o - aabb.run), (float3)(0, 0, 1)) > 0) {
+		struct Plane nearPlane;
+		nearPlane.a = aabb.run;
+		nearPlane.n = (float3)(0, 0, 1);
+		struct Hit planeHit;
+		if(PlaneHit(nearPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = nearPlane;
+			planeHitCount++;
+		}
+	}
 
-	/* // bottomPlane */
-	/* if(dot(normalize(ray.o - aabb.lbf), (float3)(0, -1, 0)) > 0) { */
-	/* 	struct Plane bottomPlane; */
-	/* 	bottomPlane.a = aabb.run; */
-	/* 	bottomPlane.n = (float3)(0, -1, 0); */
-	/* 	struct Hit hit; */
-	/* 	if(PlaneHit(bottomPlane, ray, &hit)) { */
-	/* 		hitPlane = true; */
-	/* 		planes[planeHitCount].a = (float3)(1,2,3); */
-	/* 		/\* planes[planeHitCount].n = bottomPlane.n; *\/ */
-	/* 		/\* planeHitCount++; *\/ */
-	/* 	} */
-	/* } */
+	/* /\* // bottomPlane *\/ */
+	if(dot(normalize(ray.o - aabb.lbf), (float3)(0, -1, 0)) > 0) {
+		struct Plane bottomPlane;
+		bottomPlane.a = aabb.lbf;
+		bottomPlane.n = (float3)(0, -1, 0);
+		struct Hit planeHit;
+		if(PlaneHit(bottomPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = bottomPlane;
+			planeHitCount++;
+		}
+	}
 
 	/* // topPlane */
-	/* if(dot(normalize(ray.o - aabb.run), (float3)(0, 1, 0)) > 0) { */
-	/* 	struct Plane topPlane; */
-	/* 	topPlane.a = aabb.run; */
-	/* 	topPlane.n = (float3)(0, 1, 0); */
-	/* 	struct Hit hit; */
-	/* 	if(PlaneHit(topPlane, ray, &hit)) { */
-	/* 		hitPlane = true; */
-	/* 		planes[planeHitCount] = topPlane; */
-	/* 		planeHitCount++; */
-	/* 	} */
-	/* } */
+	if(dot(normalize(ray.o - aabb.run), (float3)(0, 1, 0)) > 0) {
+		struct Plane topPlane;
+		topPlane.a = aabb.run;
+		topPlane.n = (float3)(0, 1, 0);
+		struct Hit planeHit;
+		if(PlaneHit(topPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = topPlane;
+			planeHitCount++;
+		}
+	}
 
 	/* // leftPlane */
-	/* if(dot(normalize(ray.o - aabb.lbf), (float3)(-1, 0, 0)) > 0) { */
-	/* 	struct Plane leftPlane; */
-	/* 	leftPlane.a = aabb.run; */
-	/* 	leftPlane.n = (float3)(-1, 0, 0); */
-	/* 	struct Hit hit; */
-	/* 	if(PlaneHit(leftPlane, ray, &hit)) { */
-	/* 		hitPlane = true; */
-	/* 		planes[planeHitCount] = leftPlane; */
-	/* 		planeHitCount++; */
-	/* 	} */
-	/* } */
+	if(dot(normalize(ray.o - aabb.lbf), (float3)(-1, 0, 0)) > 0) {
+		struct Plane leftPlane;
+		leftPlane.a = aabb.lbf;
+		leftPlane.n = (float3)(-1, 0, 0);
+		struct Hit planeHit;
+		if(PlaneHit(leftPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = leftPlane;
+			planeHitCount++;
+		}
+	}
 
 	/* // rightPlane */
-	/* if(dot(normalize(ray.o - aabb.run), (float3)(1, 0, 0)) > 0) { */
-	/* 	struct Plane rightPlane; */
-	/* 	rightPlane.a = aabb.run; */
-	/* 	rightPlane.n = (float3)(1, 0, 0); */
-	/* 	struct Hit hit; */
-	/* 	if(PlaneHit(rightPlane, ray, &hit)) { */
-	/* 		hitPlane = true; */
-	/* 		planes[planeHitCount] = rightPlane; */
-	/* 		planeHitCount++; */
-	/* 	} */
-	/* } */
+	if(dot(normalize(ray.o - aabb.run), (float3)(1, 0, 0)) > 0) {
+		/* printf("right plane\n"); */
+		struct Plane rightPlane;
+		rightPlane.a = aabb.run;
+		rightPlane.n = (float3)(1, 0, 0);
+		struct Hit planeHit;
+		if(PlaneHit(rightPlane, ray, &planeHit)) {
+			hitPlane = true;
+			planes[planeHitCount] = rightPlane;
+			planeHitCount++;
+		}
+	}
 
 	for(int i = 0; i < planeHitCount; i++) {
 		if(i == 0) {
@@ -312,18 +333,21 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		}
 		else {
 			struct Hit newHit;
-			if(PlaneHit(planes[i], ray, &finalHit) && newHit.t > finalHit.t) {
+			if(PlaneHit(planes[i], ray, &newHit) && newHit.t > finalHit.t) {
 				finalHit = newHit;
 			}
 		}
 	}
 
 	if(hitPlane) {
-		float3 p = ray.o + ray.d * finalHit.t;
+		float3 p = ray.o + (ray.d * finalHit.t);
 		if(p.x + EPSILON >= aabb.lbf.x && p.x - EPSILON <= aabb.run.x &&
 		   p.y + EPSILON >= aabb.lbf.y && p.y - EPSILON <= aabb.run.y &&
 		   p.z + EPSILON >= aabb.lbf.z && p.y - EPSILON <= aabb.run.z) {
-			*hit = finalHit;
+			hit->t = finalHit.t;
+			hit->ray = ray;
+			hit->normal = finalHit.normal;
+			hit->mat = aabb.mat;
 			return true;
 		}
 	}
@@ -367,10 +391,16 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
     bool isHit = false;
     struct Hit nextHit;
     struct Hit closestHit;
-    
+
     int i;
     for (i = 0; i < world->geometryCount; i++)
     {
+		/* const unsigned int x = get_global_id(0); */
+		/* const unsigned int y = get_global_id(1); */
+		/* if(x == 0 && y == 0) { */
+		/* 	printf("i:%d\ttype:%d\n", i, world->geometries[i].type); */
+		/* } */
+
         bool hitSuccess = false;
         if (world->geometries[i].type == Geo_Sphere)
         {
@@ -382,7 +412,7 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
         }
         else if (world->geometries[i].type == Geo_AABB)
         {
-            hitSuccess = AABBHit(world->AABBs[world->geometries[i].id], ray, &nextHit);
+			hitSuccess = AABBHit(world->AABBs[world->geometries[i].id], ray, &nextHit);
         }
         
         if (hitSuccess)
@@ -444,7 +474,7 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
         
         if (hit.mat.mirror)
         {
-            if (n < 3)
+            if (n < 2)
             {
                 float3 reflectionDir = normalize(Reflect(hit.ray.o - p, hit.normal));
                 float3 epsilonV = (float3)(EPSILON, EPSILON, EPSILON);
@@ -468,7 +498,7 @@ __kernel void WorldHitKernel(__global struct World *world, int width, int height
 
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
-    
+
     float3 rw = (world->cam.w * -1.0f) * ((float)height / 2.0f) / tan(world->cam.angle / 2.0f);
     float3 ru = world->cam.u * (x - ((float)width - 1.0f) / 2.0f);
     float3 rv = world->cam.v * (y - ((float)height - 1.0f) / 2.0f);
@@ -481,14 +511,22 @@ __kernel void WorldHitKernel(__global struct World *world, int width, int height
 	//////////////////
 	// Here we have no problem putting a lot of planes on the stack
 	//
-	/* struct Plane planes[1024]; */
+	/* struct Plane planes[12]; */
 	/* struct Hit hit; */
 	/* bool hitSuccess = PlaneHit(planes[0], ray, &hit); */
 	/* for(int i = 0; i < 12; i++) { */
-	/* 	planes[i].a = (float3)(0,i,0); */
+	/* 	planes[i + (x * 160)].a = (float3)(0,i,0); */
 	/* } */
-	/* planes[400].a = (float3)(0,0,0); */
-    /* /\* float3 col = planes[700].a; *\/ */
+	/* /\* planes[400].a = (float3)(0,0,0); *\/ */
+    /* float3 col = planes[700].a; */
+	/* if(x == 0 && y == 0) { */
+	/* 	struct Plane p; */
+	/* 	printf("sizeof plane:%lu\n", sizeof(p)); */
+	/* } */
+	/* if(x == 1 && y == 1) { */
+	/* 	struct Hit nextHit; */
+	/* 	bool success = AABBHit(world->AABBs[0], ray, &nextHit); */
+	/* } */
 
     float3 col = (float3)WorldHit(world, ray, 0);
 	//
