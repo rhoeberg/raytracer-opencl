@@ -16,6 +16,7 @@
 
 #define CHECK_ERR(E) if(E != CL_SUCCESS) fprintf (stderr, "CL ERROR (%d) in %s:%d\n", E,__FILE__, __LINE__);
 #define CHECK_GL(C) C; do {GLenum glerr = glGetError(); if(glerr != GL_NO_ERROR) printf("GL ERROR (%d) in %s:%d\n", glerr, __FILE__, __LINE__);} while(0)
+#define ASSERT(Expression) if(!(Expression)) {*(volatile int *)0 = 0;}
 
 
 //////////////////////////////

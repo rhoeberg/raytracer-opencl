@@ -63,3 +63,8 @@ inline cl_float3 Norm(cl_float3 a);
 inline float Length(cl_float3 a);
 inline float Dot(cl_float3 a, cl_float3 b);
 inline cl_float3 Cross(cl_float3 a, cl_float3 b);
+
+/////////////////////////////
+// c math abstraction
+inline double Atan2(double a, double b);
+inline double Asin(double a);

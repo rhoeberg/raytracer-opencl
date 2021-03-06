@@ -15,8 +15,8 @@ Camera CAMERA(cl_float3 o, cl_float3 g, cl_float3 t, float angle)
     result.u = Norm(Cross(t, result.w));
     result.v = Cross(result.w, result.u);
 
-    result.pitch = asin(result.g.y);
-    result.yaw = atan2(result.g.x, result.g.z);
+    result.pitch = DEGREES(Asin(-result.g.y));
+    result.yaw = DEGREES(Atan2(result.g.z, result.g.x));
 
     return result;
 }
@@ -35,7 +35,8 @@ Camera CAMERA(cl_float3 o, cl_float3 g, cl_float3 t, float angle)
 
 void ProcessMouseMovement(Camera *cam, Input *input)
 {
-    double xoffset = input->mouseX - input->lastX;
+    // double xoffset = input->mouseX - input->lastX;
+    double xoffset = input->lastX - input->mouseX;
     double yoffset = input->lastY - input->mouseY;
     input->lastX = input->mouseX;
     input->lastY = input->mouseY;
@@ -75,9 +76,9 @@ void ProcessKeyboard(Camera *cam, Input *input)
 	}
 
 	if(input->keys[GLFW_KEY_A]) {
-		cam->o += cam->u * vel;
+		cam->o -= cam->u * vel;
 	}
 	else if(input->keys[GLFW_KEY_D]) {
-		cam->o -= cam->u * vel;
+		cam->o += cam->u * vel;
 	}
 }

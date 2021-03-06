@@ -117,12 +117,12 @@ World InitializeDefaultWorld()
     world.aabbCount = 0;
 
     {
-        world.spheres[world.sphereCount].mat.diffuse = {0.81f, 0.73f, 0.23f};
-        world.spheres[world.sphereCount].mat.specular = {0.5f, 0.5f, 0.5f};
+        world.spheres[world.sphereCount].mat.diffuse = {0, 1, 1};
+        world.spheres[world.sphereCount].mat.specular = {0, 0, 0};
         world.spheres[world.sphereCount].mat.shine = 100.0f;
-        world.spheres[world.sphereCount].c = {-0.8f, 0.2f, -3.0f};
+        world.spheres[world.sphereCount].c = {-1, 0, -3};
         world.spheres[world.sphereCount].r = 0.5f;
-        world.spheres[world.sphereCount].mat.mirror = true;
+        world.spheres[world.sphereCount].mat.mirror = false;
         world.spheres[world.sphereCount].mat.reflection = {0.2f, 0.2f, 0.2f};
         world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
@@ -131,13 +131,12 @@ World InitializeDefaultWorld()
     }
     
     {
-        world.spheres[world.sphereCount].mat.diffuse = {0.8f, 0.78f, 0.8f};
-        world.spheres[world.sphereCount].mat.specular = {0.5f, 0.5f, 0.5f};
-        world.spheres[world.sphereCount].mat.shine = 100.0f;
-        cl_float3 center = {0.8f, 0.0f, -5.0f};
-        world.spheres[world.sphereCount].c = center;
+        world.spheres[world.sphereCount].mat.diffuse = {1, 1, 0};
+        world.spheres[world.sphereCount].mat.specular = {0, 0, 0};
+        world.spheres[world.sphereCount].mat.shine = 0.0f;
+        world.spheres[world.sphereCount].c = {1, 0, -3};
         world.spheres[world.sphereCount].r = 0.5f;
-        world.spheres[world.sphereCount].mat.mirror = true;
+        world.spheres[world.sphereCount].mat.mirror = false;
         world.spheres[world.sphereCount].mat.reflection = {0.2f, 0.2f, 0.2f};
         world.geometries[world.geometryCount].id = world.sphereCount;
         world.geometries[world.geometryCount].type = Geo_Sphere;
@@ -160,8 +159,8 @@ World InitializeDefaultWorld()
     }
 
     {
-        world.AABBs[world.aabbCount].lbf = {3, 0.0f, 2.0f};
-        world.AABBs[world.aabbCount].run = {4, 1.0f, 3.0f};
+        world.AABBs[world.aabbCount].lbf = {1, 0.0f, -2.0f};
+        world.AABBs[world.aabbCount].run = {2, 1.0f, -1.0f};
         world.AABBs[world.aabbCount].mat.diffuse = {0, 1, 0};
         world.AABBs[world.aabbCount].mat.specular = {0.2f, 0.2f, 0.2f};
 		world.AABBs[world.aabbCount].mat.shine = 100.0f;

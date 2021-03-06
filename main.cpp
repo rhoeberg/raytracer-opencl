@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
 	world.cam = CAMERA({0, 0, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
-    
+
 	// ////////////////
 	// // INITIALIZE OPENCL
 	OpenCLData cl;
@@ -83,12 +83,10 @@ int main(int argc, char *argv[])
         ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
         
-
         glFinish();
         clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);
 
 		CHECK_ERR(clEnqueueWriteBuffer(cl.commands, cl.inputWorld, CL_TRUE, 0, sizeof(World), &world, 0, NULL, NULL));
-
         
         // Execute the kernel over the entire range of our 1d input data set
         // using the maximum number of work group items for this device

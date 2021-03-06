@@ -225,28 +225,9 @@ bool PlaneHit(struct Plane plane, struct Ray ray, struct Hit *hit)
 bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 {
 	struct Hit finalHit;
-
-	/* struct Plane planes[1024]; */
-	/* struct Hit hit; */
-	/* bool hitSuccess = PlaneHit(planes[0], ray, &hit); */
-
 	struct Plane planes[6];
 	int planeHitCount = 0;
 	bool hitPlane = false;
-
-	///////////////////////
-	// PROBLEM IS MAYBE HERE????
-	//
-	/* struct Plane nearPlane; */
-	/* nearPlane.a = aabb.run; */
-	/* nearPlane.n = (float3)(0, 0, 1); */
-	/* PlaneHit(nearPlane, ray, &hit); */
-
-	/* struct Plane bottomPlane; */
-	/* bottomPlane.a = aabb.run; */
-	/* bottomPlane.n = (float3)(0, -1, 0); */
-	/* PlaneHit(bottomPlane, ray, &hit); */
-	/* printf("yes its true\n"); */
 
 	// farPlane
 	if(dot(normalize(ray.o - aabb.lbf), (float3)(0, 0, -1)) > 0) {
@@ -395,12 +376,6 @@ bool WorldHitGeometry(__global const struct World *world, struct Ray ray, struct
     int i;
     for (i = 0; i < world->geometryCount; i++)
     {
-		/* const unsigned int x = get_global_id(0); */
-		/* const unsigned int y = get_global_id(1); */
-		/* if(x == 0 && y == 0) { */
-		/* 	printf("i:%d\ttype:%d\n", i, world->geometries[i].type); */
-		/* } */
-
         bool hitSuccess = false;
         if (world->geometries[i].type == Geo_Sphere)
         {
@@ -508,27 +483,8 @@ __kernel void WorldHitKernel(__global struct World *world, int width, int height
     ray.o = world->cam.o;
     ray.d = d;
 
-	//////////////////
-	// Here we have no problem putting a lot of planes on the stack
-	//
-	/* struct Plane planes[12]; */
-	/* struct Hit hit; */
-	/* bool hitSuccess = PlaneHit(planes[0], ray, &hit); */
-	/* for(int i = 0; i < 12; i++) { */
-	/* 	planes[i + (x * 160)].a = (float3)(0,i,0); */
-	/* } */
-	/* /\* planes[400].a = (float3)(0,0,0); *\/ */
-    /* float3 col = planes[700].a; */
-	/* if(x == 0 && y == 0) { */
-	/* 	struct Plane p; */
-	/* 	printf("sizeof plane:%lu\n", sizeof(p)); */
-	/* } */
-	/* if(x == 1 && y == 1) { */
-	/* 	struct Hit nextHit; */
-	/* 	bool success = AABBHit(world->AABBs[0], ray, &nextHit); */
-	/* } */
-
     float3 col = (float3)WorldHit(world, ray, 0);
+
 	//
 	// WRITE IMAGE
 	//

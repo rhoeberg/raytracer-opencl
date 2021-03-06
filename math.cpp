@@ -206,3 +206,16 @@ inline cl_float3 Cross(cl_float3 a, cl_float3 b)
     result.z = a.x * b.y - a.y * b.x;
     return result;
 }
+
+
+/////////////////////////////
+// c math abstraction
+inline double Atan2(double a, double b)
+{
+	return atan2(a, b);
+}
+
+inline double Asin(double a)
+{
+	return asin(a);
+}
