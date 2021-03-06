@@ -27,11 +27,15 @@ int main(int argc, char *argv[])
     GLFWwindow *win;
     init_glfw(&win);
 
+	/////////////////
+	// INITIALIZE INPUT
 	Input input;
 	for(int i = 0; i < 1024; i++) {
 		input.keys[i] = false;
 		input.registeredKeys[i] = false;
 	}
+	input.firstMouse = true;
+
 	glfwSetWindowUserPointer(win, &input);
 
     GLuint quad = create_quad();
@@ -50,13 +54,17 @@ int main(int argc, char *argv[])
 	////////////////
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
-	world.cam = CAMERA({0, 0, 0}, {0, 0, 1}, {0, 1, 0}, 0.785);
+	world.cam = CAMERA({0, 0, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
     
 	// ////////////////
 	// // INITIALIZE OPENCL
 	OpenCLData cl;
 	initialize_opencl(&cl, &world, texture);
     int err = 0;
+
+	cl_ulong size;
+	clGetDeviceInfo(cl.device_id, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &size, 0);
+	printf("local worker mem size:%llu\n", size);
     
     double frameDuration = 0;
     while (!glfwWindowShouldClose(win))

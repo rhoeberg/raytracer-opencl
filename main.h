@@ -52,7 +52,7 @@
 // STRUCTS
 struct Input
 {
-	bool firstMouse = false;
+	bool firstMouse;
 	double lastX;
 	double lastY;
 	double mouseX;
