@@ -7,9 +7,13 @@ set libraryFlags=glfw3dll.lib OpenGL32.lib glew32.lib OpenCL.lib /link /LIBPATH:
 
 IF NOT EXIST build (
    mkdir build
-   xcopy 3rdparty\glfw\lib\glfw3.dll build\
-   xcopy 3rdparty\glew\bin\glew32.dll build\
+   rem xcopy 3rdparty\glfw\lib\glfw3.dll build\
+   rem xcopy 3rdparty\glew\bin\glew32.dll build\
 )
+xcopy raytracer-kernel.cl build\ /Y
+xcopy fragmentshader.frag build\ /Y
+xcopy vertexshader.vs build\ /Y
+ 
 pushd build
 cl -MD -FC -Zi ..\main.cpp /Feraytracer-opencl.exe %includeFlags% %libraryFlags%
 popd
