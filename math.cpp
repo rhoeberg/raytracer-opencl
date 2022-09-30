@@ -219,3 +219,8 @@ inline double Asin(double a)
 {
 	return asin(a);
 }
+
+inline double Sin(double a)
+{
+	return sin(a);
+}
