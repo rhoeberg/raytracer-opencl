@@ -68,3 +68,4 @@ inline cl_float3 Cross(cl_float3 a, cl_float3 b);
 // c math abstraction
 inline double Atan2(double a, double b);
 inline double Asin(double a);
+inline double Sin(double a);

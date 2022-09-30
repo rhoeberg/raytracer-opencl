@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
 		frameDuration = glfwGetTime() - frameStart;
     }
     
-    cleanup_cl(&cl);
     glfwTerminate();
+    cleanup_cl(&cl);
     
     return 0;
 }

@@ -179,6 +179,8 @@ void initialize_opencl(OpenCLData *cl, World *world, GLuint texture)
 
 void cleanup_cl(OpenCLData *cl)
 {
+	glFinish();
+    clFinish(cl->commands);
     clReleaseProgram(cl->program);
     clReleaseKernel(cl->kernel);
     clReleaseCommandQueue(cl->commands);
