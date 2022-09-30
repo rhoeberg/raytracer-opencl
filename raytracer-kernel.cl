@@ -1,9 +1,11 @@
 #define EPSILON 0.0001
-#define MAX_PLANES 2
-#define MAX_SPHERES 2
-#define MAX_AABB 2
+#define MAX_PLANES 10
+#define MAX_SPHERES 10
+#define MAX_AABB 10
 #define MAX_GEOMETRIES (MAX_PLANES + MAX_SPHERES + MAX_AABB)
 #define MAX_POINTLIGHTS 16
+
+#define ASSERT(Expression) if(!(Expression)) {*(volatile int *)0 = 0;}
 
 struct __attribute__ ((packed)) DirLight
 {
@@ -131,47 +133,6 @@ inline float Square(float a)
     return a * a;
 }
 
-/* void worldDebug(__global const struct World *world) */
-/* { */
-/* 	printf("pointlight count: %d\n", world->pointLightCount); */
-/* 	printf("sphere count: %d\n", world->sphereCount); */
-/* 	printf("plane count: %d\n", world->planeCount); */
-/* 	{ */
-/* 		struct Material mat = world->spheres[0].mat; */
-/* 		printf("sphere 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
-/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
-/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
-/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
-/* 	} */
-/* 	{ */
-/* 		struct Material mat = world->spheres[1].mat; */
-/* 		printf("sphere 1\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
-/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
-/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
-/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
-/* 	} */
-/* 	{ */
-/* 		struct Material mat = world->planes[0].mat; */
-/* 		printf("planes 0\n\tdiffuse: %f %f %f\n\tspec: %f %f %f\n\treflection: %f %f %f\n", */
-/* 			   mat.diffuse.x, mat.diffuse.y, mat.diffuse.z, */
-/* 			   mat.specular.x, mat.specular.y, mat.specular.z, */
-/* 			   mat.reflection.x, mat.reflection.y, mat.reflection.z); */
-/* 	} */
-/* 	{ */
-/* 		struct PointLight point = world->pointLights[0]; */
-/* 		printf("pointlight\n\tpos:%f %f %f\n\tcolor:%f %f %f\n", */
-/* 			   point.pos.x, point.pos.y, point.pos.z, */
-/* 			   point.color.x, point.color.y, point.color.z); */
-/* 	} */
-/* 	{ */
-/* 		struct DirLight light = world->dirLight; */
-/* 		printf("dirlight\n\tdir:%f %f %f\n\tcolor:%f %f %f\n", */
-/* 			   light.dir.x, light.dir.y, light.dir.z, */
-/* 			   light.color.x, light.color.y, light.color.z); */
-/* 	} */
-
-
-
 bool SphereHit(struct Sphere sphere, struct Ray ray, struct Hit *hit)
 {
     float a = dot(ray.d, ray.d);
@@ -227,7 +188,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 	struct Hit finalHit;
 	struct Plane planes[6];
 	int planeHitCount = 0;
-	bool hitPlane = false;
 
 	// farPlane
 	if(dot(normalize(ray.o - aabb.lbf), (float3)(0, 0, -1)) > 0) {
@@ -236,7 +196,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		farPlane.n = (float3)(0, 0, -1);
 		struct Hit planeHit;
 		if(PlaneHit(farPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = farPlane;
 			planeHitCount++;
 		}
@@ -249,7 +208,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		nearPlane.n = (float3)(0, 0, 1);
 		struct Hit planeHit;
 		if(PlaneHit(nearPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = nearPlane;
 			planeHitCount++;
 		}
@@ -262,7 +220,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		bottomPlane.n = (float3)(0, -1, 0);
 		struct Hit planeHit;
 		if(PlaneHit(bottomPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = bottomPlane;
 			planeHitCount++;
 		}
@@ -275,7 +232,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		topPlane.n = (float3)(0, 1, 0);
 		struct Hit planeHit;
 		if(PlaneHit(topPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = topPlane;
 			planeHitCount++;
 		}
@@ -288,7 +244,6 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		leftPlane.n = (float3)(-1, 0, 0);
 		struct Hit planeHit;
 		if(PlaneHit(leftPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = leftPlane;
 			planeHitCount++;
 		}
@@ -296,13 +251,11 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 
 	/* // rightPlane */
 	if(dot(normalize(ray.o - aabb.run), (float3)(1, 0, 0)) > 0) {
-		/* printf("right plane\n"); */
 		struct Plane rightPlane;
 		rightPlane.a = aabb.run;
 		rightPlane.n = (float3)(1, 0, 0);
 		struct Hit planeHit;
 		if(PlaneHit(rightPlane, ray, &planeHit)) {
-			hitPlane = true;
 			planes[planeHitCount] = rightPlane;
 			planeHitCount++;
 		}
@@ -320,11 +273,11 @@ bool AABBHit(struct AABB aabb, struct Ray ray, struct Hit *hit)
 		}
 	}
 
-	if(hitPlane) {
+	if(planeHitCount > 0) {
 		float3 p = ray.o + (ray.d * finalHit.t);
 		if(p.x + EPSILON >= aabb.lbf.x && p.x - EPSILON <= aabb.run.x &&
 		   p.y + EPSILON >= aabb.lbf.y && p.y - EPSILON <= aabb.run.y &&
-		   p.z + EPSILON >= aabb.lbf.z && p.y - EPSILON <= aabb.run.z) {
+		   p.z + EPSILON >= aabb.lbf.z && p.z - EPSILON <= aabb.run.z) {
 			hit->t = finalHit.t;
 			hit->ray = ray;
 			hit->normal = finalHit.normal;
@@ -445,7 +398,6 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
                 result += LightGetColor(pointFrom, world->pointLights[i].color, hit);
             }
         }
-
         
         if (hit.mat.mirror)
         {
@@ -470,7 +422,6 @@ float3 WorldHit(__global const struct World *world, struct Ray ray, int n)
 
 __kernel void WorldHitKernel(__global struct World *world, int width, int height, __write_only image2d_t texture)
 {
-
     const unsigned int x = get_global_id(0);
     const unsigned int y = get_global_id(1);
 
