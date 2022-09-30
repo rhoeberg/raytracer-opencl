@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 	////////////////
 	// INITIALIZE WORLD
     World world = InitializeDefaultWorld();
-	world.cam = CAMERA({0, 0, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
+	world.cam = CAMERA({0, 1, 0}, {0, 0, -1}, {0, 1, 0}, 0.785);
 
 	// ////////////////
 	// // INITIALIZE OPENCL
@@ -82,6 +82,9 @@ int main(int argc, char *argv[])
         ImGui::Begin("performance", &show);
         ImGui::Text("frameduration: %f", frameDuration);
         ImGui::End();
+
+		world.spheres[0].c.x = -1.0 + Sin(glfwGetTime() * 0.3f) * 3.5f;
+		world.spheres[0].c.z = -3.0 + Sin(glfwGetTime() * 0.3f) * 3.5f;
         
         glFinish();
         clEnqueueAcquireGLObjects(cl.commands, 1, &cl.outputTexture, 0, 0, NULL);

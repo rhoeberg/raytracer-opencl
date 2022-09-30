@@ -6,9 +6,9 @@
 #include "geometry.h"
 #include "light.h"
 
-#define MAX_PLANES 2
-#define MAX_SPHERES 2
-#define MAX_AABB 2
+#define MAX_PLANES 10
+#define MAX_SPHERES 10
+#define MAX_AABB 10
 #define MAX_GEOMETRIES (MAX_PLANES + MAX_SPHERES + MAX_AABB)
 #define MAX_POINTLIGHTS 16
 
